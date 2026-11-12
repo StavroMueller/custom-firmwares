@@ -1,0 +1,22 @@
+00000000-03ffffff : System RAM
+  00010000-004d6e47 : Kernel code
+  004d6e48-006458e7 : Kernel data
+10003000-100030ff : jz-rtc.0
+  10003000-100030ff : jz-rtc
+10020000-1002009f : jz-asoc-aic
+  10020000-1002009f : jz-asoc-aic
+100200a0-100200a9 : icdc-d3
+  100200a0-100200a9 : icdc-d3
+10030000-10030fff : jz-uart.0
+10032000-10032fff : jz-uart.2
+10051000-10051fff : jz-i2c.1
+10052000-10052fff : jz-i2c.2
+13050000-130517ff : jz-fb
+  13050000-130517ff : jz-fb
+13420000-1342ffff : jz-dma
+  13420000-1342ffff : jz-dma
+13440000-1344ffff : jz-sfc.0
+  13440000-1344ffff : jz-sfc
+13450000-13450fff : jzmmc_v1.2.0
+13500000-1353ffff : jz-dwc2
+  13500000-1353ffff : jz-dwc2

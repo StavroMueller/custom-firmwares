@@ -1,0 +1,31 @@
+GPIOs 0-31, GPIO A:
+ gpio-16  (ES9218_RST          ) out lo
+ gpio-17  (TUSB320 CC_ENABLE   ) out lo
+ gpio-19  (VOL INC & PRE SONG  ) in  hi
+
+GPIOs 32-63, GPIO B:
+ gpio-38  (mmc_detect          ) in  hi
+ gpio-39  (tusb320_int_gpio    ) in  hi
+ gpio-40  (GPIO_USB_POWER_ON   ) out hi
+ gpio-41  (GPIO_OTG_ID         ) out hi
+ gpio-42  (GPIO_AXP192_IRQ     ) in  lo
+ gpio-43  (VBUS DETECT_WAKEUP  ) in  hi
+ gpio-44  (cst3xx gpio irq     ) in  hi
+ gpio-45  (otg enable pin      ) out lo
+ gpio-46  (LCD_SPI_RST         ) out hi
+ gpio-50  (lcd cs              ) out lo
+ gpio-55  (es9218 scl          ) in  hi
+ gpio-56  (es9218 sda          ) in  hi
+ gpio-57  (GPIO_USB_CHANGE_EN  ) out lo
+ gpio-60  (VOL DEC & NEXT SONG ) in  hi
+ gpio-63  (J3 POWER KEY        ) in  hi
+
+GPIOs 64-95, GPIO C:
+ gpio-64  (LCD_SPI_SDA         ) out lo
+ gpio-66  (LCD_SPI_CLK         ) out hi
+ gpio-67  (BL LDO ENABLE       ) out hi
+ gpio-85  (es9218 mck en       ) out lo
+ gpio-87  (PLAY_PAUSE  KEY     ) in  hi
+ gpio-88  (pwm4                ) in  lo
+
+GPIOs 96-101, GPIO D:

@@ -1,0 +1,20 @@
+system type		: halley2_v10
+machine			: Unknown
+processor		: 0
+cpu model		: Ingenic Xburst V4.15  FPU V0.0
+BogoMIPS		: 1001.88
+wait instruction	: yes
+microsecond timers	: no
+tlb_entries		: 32
+extra interrupt vector	: yes
+hardware watchpoint	: yes, count: 1, address/irw mask: [0x0fff]
+isa			: mips32r1
+ASEs implemented	:
+shadow register sets	: 1
+kscratch registers	: 0
+core			: 0
+VCED exceptions		: not available
+VCEI exceptions		: not available
+
+Hardware		: halley2
+Serial			: 00000000 00000000 00000000 00000000

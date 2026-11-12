@@ -1,0 +1,1 @@
+mem=64M@0x0 no_console_suspend console=ttyS2,115200n8 lpj=5009408 ip=off  init=/linuxrc ubi.mtd=3 root=ubi0:rootfs ubi.mtd=4 rootfstype=ubifs rw

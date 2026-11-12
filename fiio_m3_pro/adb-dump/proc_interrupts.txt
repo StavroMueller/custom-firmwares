@@ -1,0 +1,28 @@
+           CPU0       
+  9:          0   jz-intc  jz-asoc-aic
+ 11:     636658   jz-intc  jz-timerost
+ 15:      49980   jz-intc  jz-sfc
+ 18:          0   jz-intc  pdma
+ 19:          0   jz-intc  pdma_desc
+ 22:          0   jz-intc  GPIO D
+ 23:          0   jz-intc  GPIO C
+ 24:       1899   jz-intc  GPIO B
+ 25:          0   jz-intc  GPIO A
+ 29:        421   jz-intc  jz-dwc2, jz-dwc2, dwc2_hsotg:usb1
+ 39:          0   jz-intc  lcdc-1
+ 40:          0   jz-intc  rtc 1Hz and alarm
+ 45:         81   jz-intc  jzmmc_v1.2.0
+ 57:      25685   jz-intc  uart2
+ 59:          0   jz-intc  uart0
+ 66:     336895   jz-intc  jz-i2c.2
+ 67:       8921   jz-intc  jz-i2c.1
+ 91:          0    GPIO A  VOL INC & PRE SONG
+110:          3    GPIO B  mmc-insert-detect
+111:         83    GPIO B  tusb320_isr
+114:          0    GPIO B  axp192_irq
+115:          2    GPIO B  VBUS DETECT_WAKEUP
+116:       1807    GPIO B  cst3xx
+132:          0    GPIO B  VOL DEC & NEXT SONG
+135:          4    GPIO B  J3 POWER KEY
+159:          0    GPIO C  PLAY_PAUSE  KEY
+ERR:          0

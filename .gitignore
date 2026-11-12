@@ -1,0 +1,7 @@
+.DS_Store
+
+# FiiO M3 Pro: upstream Rockbox clone (the port lives in patches/) and build output
+fiio_m3_pro/rockbox/
+fiio_m3_pro/build-*/
+fiio_m3_pro/sdcard/
+fiio_m3_pro/themes/tui-only/

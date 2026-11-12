@@ -1,0 +1,4 @@
+20:24:29  Manufacturer: Rockbox.org  USB Vendor ID: 0x2972  USB Product ID: 0x0044 
+20:24:46 (player not on USB)
+20:24:55  Manufacturer: GuangZhou FiiO Electronics Technology Co., Ltd.  USB Vendor ID: 0x2972  USB Product ID: 0x0044 
+DONE

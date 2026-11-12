@@ -1,0 +1,1025 @@
+[  379.196433] android_usb: already disabled
+[  379.196614] android_usb: already disabled
+[  379.196773] uac2_bind_config :Enter !!!
+[  379.280766]  enter tusb320_interrupt
+[  379.283863] ENTER  TUSB320 CC INT WORK
+[  379.284576] clear tusb320_interrupt
+[  379.284609] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.284619]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.284629]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.284651] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.284669] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.284716] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.284730] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.284743] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.284753] ========== SEND AC ONLINE EVENT===========
+[  379.285298]  enter tusb320_interrupt
+[  379.295004] ENTER  TUSB320 CC INT WORK
+[  379.296398] clear tusb320_interrupt
+[  379.296433] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.296443]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.296453]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.296475] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.296493] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.319156] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  379.319185] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.319206] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.319218] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.319228] ========== SEND AC ONLINE EVENT===========
+[  379.379050] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  379.412317] uac2_bind_config :Exit !!!
+[  379.421559] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[  379.421584] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[  379.421595] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[  379.432363] alsa_uac2_exit: enter !!!
+[  379.448672]  enter tusb320_interrupt
+[  379.453867] ENTER  TUSB320 CC INT WORK
+[  379.454480]  enter tusb320_interrupt
+[  379.454536] clear tusb320_interrupt
+[  379.454556] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.454566]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.454575]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.454597] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.454615] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.454662] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.454677] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.454689] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.454699] ========== SEND AC ONLINE EVENT===========
+[  379.464365] ENTER  TUSB320 CC INT WORK
+[  379.465723] clear tusb320_interrupt
+[  379.465753] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.465763]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.465773]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.465795] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.465813] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.469534] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  379.469563] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.469584] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.469597] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.469607] ========== SEND AC ONLINE EVENT===========
+[  379.534091] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  379.616675]  enter tusb320_interrupt
+[  379.623860] ENTER  TUSB320 CC INT WORK
+[  379.624675] clear tusb320_interrupt
+[  379.624708] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.624719]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.624728]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.624750] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.624769] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.624820] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.624834] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.624846] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.624856] ========== SEND AC ONLINE EVENT===========
+[  379.673984] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  379.698522] uac2_bind_config :Enter !!!
+[  379.784845]  enter tusb320_interrupt
+[  379.794276] ENTER  TUSB320 CC INT WORK
+[  379.795365] clear tusb320_interrupt
+[  379.795398] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.795408]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.795418]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.795440] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.795458] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.795506] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.795520] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.795532] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.795542] ========== SEND AC ONLINE EVENT===========
+[  379.824178] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  379.874114] uac2_bind_config :Exit !!!
+[  379.877326] alsa_uac2_exit: enter !!!
+[  379.952736]  enter tusb320_interrupt
+[  379.953863] ENTER  TUSB320 CC INT WORK
+[  379.954620] clear tusb320_interrupt
+[  379.954647] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.954658]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.954668]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.954689] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.954708] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.954756] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.954771] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.954783] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.954793] ========== SEND AC ONLINE EVENT===========
+[  379.954996]  enter tusb320_interrupt
+[  379.964362] ENTER  TUSB320 CC INT WORK
+[  379.965714] clear tusb320_interrupt
+[  379.965745] tusb320_usb_cc_work otg_state:2 enable otg
+[  379.965755]  TUSB320 CC WORK  connect pc and do device mode 
+[  379.965764]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  379.965787] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.965805] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  379.966306] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  379.966332] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.966353] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  379.966366] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  379.966376] ========== SEND AC ONLINE EVENT===========
+[  380.000155] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.033620] android_usb: already disabled
+[  380.037734] uac2_bind_config :Enter !!!
+[  380.120828]  enter tusb320_interrupt
+[  380.123866] ENTER  TUSB320 CC INT WORK
+[  380.124593] clear tusb320_interrupt
+[  380.124625] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.124635]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.124644]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.124666] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.124684] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.124733] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.124747] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.124759] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.124769] ========== SEND AC ONLINE EVENT===========
+[  380.125304]  enter tusb320_interrupt
+[  380.134351] ENTER  TUSB320 CC INT WORK
+[  380.135658] clear tusb320_interrupt
+[  380.135688] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.135698]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.135707]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.135729] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.135747] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.145994] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.146024] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.146044] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.146057] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.146067] ========== SEND AC ONLINE EVENT===========
+[  380.187898] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.263438] uac2_bind_config :Exit !!!
+[  380.266658] alsa_uac2_exit: enter !!!
+[  380.288819]  enter tusb320_interrupt
+[  380.294105] ENTER  TUSB320 CC INT WORK
+[  380.295370] clear tusb320_interrupt
+[  380.295406] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.295417]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.295425]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.295448] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.295466] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.295513] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.295527] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.295539] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.295548] ========== SEND AC ONLINE EVENT===========
+[  380.334079] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.426217] android_usb: already disabled
+[  380.426519] uac2_bind_config :Enter !!!
+[  380.456907]  enter tusb320_interrupt
+[  380.463883] ENTER  TUSB320 CC INT WORK
+[  380.464583] clear tusb320_interrupt
+[  380.464611] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.464621]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.464631]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.464651] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.464670] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.464719] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.464733] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.464745] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.464755] ========== SEND AC ONLINE EVENT===========
+[  380.487576] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.594324] uac2_bind_config :Exit !!!
+[  380.597458] alsa_uac2_exit: enter !!!
+[  380.625068]  enter tusb320_interrupt
+[  380.633844] ENTER  TUSB320 CC INT WORK
+[  380.634477] clear tusb320_interrupt
+[  380.634524] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.634534]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.634544]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.634566] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.634584] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.634635] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.634649] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.634661] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.634671] ========== SEND AC ONLINE EVENT===========
+[  380.690462] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.784363] android_usb: already disabled
+[  380.784540] android_usb: already disabled
+[  380.784685] android_usb: already disabled
+[  380.784840] android_usb: already disabled
+[  380.784991] uac2_bind_config :Enter !!!
+[  380.793017]  enter tusb320_interrupt
+[  380.794678] ENTER  TUSB320 CC INT WORK
+[  380.795707]  enter tusb320_interrupt
+[  380.795755] clear tusb320_interrupt
+[  380.795774] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.795784]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.795794]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.795816] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.795834] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.795883] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.795898] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.795910] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.795920] ========== SEND AC ONLINE EVENT===========
+[  380.796705] power_supply battery: power_supply_changed
+[  380.796780] power_supply battery: power_supply_changed_work
+[  380.796841] power_supply battery: uevent
+[  380.796855] power_supply battery: POWER_SUPPLY_NAME=battery
+[  380.796891] power_supply battery: prop STATUS=Charging
+[  380.796912] power_supply battery: prop HEALTH=Good
+[  380.796931] power_supply battery: prop PRESENT=0
+[  380.796951] power_supply battery: prop TECHNOLOGY=Li-ion
+[  380.796969] power_supply battery: prop CAPACITY=5
+[  380.796987] power_supply battery: prop TEMP=30
+[  380.797007] power_supply battery: prop VOLTAGE_NOW=3993
+[  380.797027] power_supply battery: prop CURRENT_NOW=630
+[  380.804963] ENTER  TUSB320 CC INT WORK
+[  380.806559] clear tusb320_interrupt
+[  380.806589] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.806599]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.806608]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.806630] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.806648] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.844884] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.844913] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.844933] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.844946] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.844955] ========== SEND AC ONLINE EVENT===========
+[  380.921955] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.928246] power_supply battery: uevent
+[  380.928278] power_supply battery: POWER_SUPPLY_NAME=battery
+[  380.928308] power_supply battery: prop STATUS=Charging
+[  380.928326] power_supply battery: prop HEALTH=Good
+[  380.928346] power_supply battery: prop PRESENT=0
+[  380.928364] power_supply battery: prop TECHNOLOGY=Li-ion
+[  380.928384] power_supply battery: prop CAPACITY=5
+[  380.928402] power_supply battery: prop TEMP=30
+[  380.928422] power_supply battery: prop VOLTAGE_NOW=3993
+[  380.928441] power_supply battery: prop CURRENT_NOW=630
+[  380.961064]  enter tusb320_interrupt
+[  380.963880] ENTER  TUSB320 CC INT WORK
+[  380.964654] clear tusb320_interrupt
+[  380.964683] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.964694]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.964703]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.964724] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.964743] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.964792] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.964806] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.964818] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.964827] ========== SEND AC ONLINE EVENT===========
+[  380.965597]  enter tusb320_interrupt
+[  380.974949] ENTER  TUSB320 CC INT WORK
+[  380.975736] clear tusb320_interrupt
+[  380.975766] tusb320_usb_cc_work otg_state:2 enable otg
+[  380.975776]  TUSB320 CC WORK  connect pc and do device mode 
+[  380.975786]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  380.975807] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.975825] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  380.997025] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  380.997056] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.997076] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  380.997088] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  380.997098] ========== SEND AC ONLINE EVENT===========
+[  381.025001] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.049385] uac2_bind_config :Exit !!!
+[  381.057342] alsa_uac2_exit: enter !!!
+[  381.129160]  enter tusb320_interrupt
+[  381.133879] ENTER  TUSB320 CC INT WORK
+[  381.134570] clear tusb320_interrupt
+[  381.134602] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.134612]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.134629]  enter tusb320_interrupt
+[  381.134646]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.134669] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.134687] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.134739] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.134754] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.134766] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.134776] ========== SEND AC ONLINE EVENT===========
+[  381.144970] ENTER  TUSB320 CC INT WORK
+[  381.145788] clear tusb320_interrupt
+[  381.145820] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.145830]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.145840]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.145862] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.145880] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.159142] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.159172] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.159193] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.159204] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.159215] ========== SEND AC ONLINE EVENT===========
+[  381.214226] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.244229] android_usb: already disabled
+[  381.244375] android_usb: already disabled
+[  381.244530] android_usb: already disabled
+[  381.244708] android_usb: already disabled
+[  381.244856] android_usb: already disabled
+[  381.244996] android_usb: already disabled
+[  381.245166] android_usb: already disabled
+[  381.245312] uac2_bind_config :Enter !!!
+[  381.297222]  enter tusb320_interrupt
+[  381.304352] ENTER  TUSB320 CC INT WORK
+[  381.305041] clear tusb320_interrupt
+[  381.305076] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.305087]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.305096]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.305118] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.305137] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.305186] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.305200] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.305212] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.305222] ========== SEND AC ONLINE EVENT===========
+[  381.359872] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.440570] uac2_bind_config :Exit !!!
+[  381.449802] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[  381.449828] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[  381.449839] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[  381.463778] alsa_uac2_exit: enter !!!
+[  381.465232]  enter tusb320_interrupt
+[  381.474226] ENTER  TUSB320 CC INT WORK
+[  381.474781] clear tusb320_interrupt
+[  381.474826] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.474837]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.474846]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.474868] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.474886] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.474936] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.474952] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.474964] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.474974] ========== SEND AC ONLINE EVENT===========
+[  381.515111] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.618481] android_usb: already disabled
+[  381.618609] android_usb: already disabled
+[  381.618905] uac2_bind_config :Enter !!!
+[  381.633373]  enter tusb320_interrupt
+[  381.633611] ENTER  TUSB320 CC INT WORK
+[  381.634113]  enter tusb320_interrupt
+[  381.634136] clear tusb320_interrupt
+[  381.634154] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.634157]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.634161]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.634176] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.634187] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.634227] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.634235] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.634240] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.634243] ========== SEND AC ONLINE EVENT===========
+[  381.643629] ENTER  TUSB320 CC INT WORK
+[  381.644143] clear tusb320_interrupt
+[  381.644157] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.644161]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.644163]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.644179] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.644190] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.688499] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.688513] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.688528] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.688533] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.688537] ========== SEND AC ONLINE EVENT===========
+[  381.734195] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.801254]  enter tusb320_interrupt
+[  381.804109] ENTER  TUSB320 CC INT WORK
+[  381.805138] clear tusb320_interrupt
+[  381.805171] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.805181]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.805191]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.805213] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.805231] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.805279] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.805293] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.805306] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.805316] ========== SEND AC ONLINE EVENT===========
+[  381.805780]  enter tusb320_interrupt
+[  381.815189] ENTER  TUSB320 CC INT WORK
+[  381.816011] clear tusb320_interrupt
+[  381.816043] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.816054]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.816063]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.816085] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.816104] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.857269] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.857281] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.857295] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.857301] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.857304] ========== SEND AC ONLINE EVENT===========
+[  381.874278] uac2_bind_config :Exit !!!
+[  381.877373] android_usb: already enabled
+[  381.877646] android_usb: already enabled
+[  381.877794] android_usb: already enabled
+[  381.877939] android_usb: already enabled
+[  381.878075] android_usb: already enabled
+[  381.878230] alsa_uac2_exit: enter !!!
+[  381.899515] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.969226]  enter tusb320_interrupt
+[  381.973620] ENTER  TUSB320 CC INT WORK
+[  381.974134]  enter tusb320_interrupt
+[  381.974152] clear tusb320_interrupt
+[  381.974169] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.974173]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.974177]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.974191] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.974203] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.974247] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.974253] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.974259] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.974263] ========== SEND AC ONLINE EVENT===========
+[  381.977617] android_usb: already disabled
+[  381.977741] android_usb: already disabled
+[  381.977874] android_usb: already disabled
+[  381.978002] android_usb: already disabled
+[  381.978119] android_usb: already disabled
+[  381.978244] uac2_bind_config :Enter !!!
+[  381.983661] ENTER  TUSB320 CC INT WORK
+[  381.984172] clear tusb320_interrupt
+[  381.984185] tusb320_usb_cc_work otg_state:2 enable otg
+[  381.984189]  TUSB320 CC WORK  connect pc and do device mode 
+[  381.984192]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  381.984207] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.984219] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  381.984525] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  381.984537] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.984550] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  381.984555] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  381.984558] ========== SEND AC ONLINE EVENT===========
+[  382.104192] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.137514]  enter tusb320_interrupt
+[  382.143623] ENTER  TUSB320 CC INT WORK
+[  382.144149] clear tusb320_interrupt
+[  382.144167] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.144171]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.144173]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.144189] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.144201] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.144244] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.144251] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.144256] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.144259] ========== SEND AC ONLINE EVENT===========
+[  382.164428] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.305517]  enter tusb320_interrupt
+[  382.313623] ENTER  TUSB320 CC INT WORK
+[  382.314156] clear tusb320_interrupt
+[  382.314174] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.314178]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.314180]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.314197] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.314208] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.314253] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.314260] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.314266] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.314269] ========== SEND AC ONLINE EVENT===========
+[  382.324455] uac2_bind_config :Exit !!!
+[  382.327564] android_usb: already enabled
+[  382.327832] android_usb: already enabled
+[  382.328789] android_usb: already enabled
+[  382.328948] alsa_uac2_exit: enter !!!
+[  382.336454] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.426149] android_usb: already disabled
+[  382.426304] android_usb: already disabled
+[  382.426749] uac2_bind_config :Enter !!!
+[  382.473543]  enter tusb320_interrupt
+[  382.483924] ENTER  TUSB320 CC INT WORK
+[  382.484710] clear tusb320_interrupt
+[  382.484738] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.484749]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.484758]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.484780] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.484798] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.484848] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.484862] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.484874] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.484884] ========== SEND AC ONLINE EVENT===========
+[  382.512150] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.641724]  enter tusb320_interrupt
+[  382.643662] ENTER  TUSB320 CC INT WORK
+[  382.644169] clear tusb320_interrupt
+[  382.644180]  enter tusb320_interrupt
+[  382.644199] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.644204]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.644206]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.644220] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.644232] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.644273] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.644280] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.644285] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.644288] ========== SEND AC ONLINE EVENT===========
+[  382.653649] ENTER  TUSB320 CC INT WORK
+[  382.654171] clear tusb320_interrupt
+[  382.654190] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.654194]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.654196]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.654213] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.654224] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.671282] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.671294] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.671308] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.671314] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.671317] ========== SEND AC ONLINE EVENT===========
+[  382.704105] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.727043] uac2_bind_config :Exit !!!
+[  382.730164] alsa_uac2_exit: enter !!!
+[  382.809642]  enter tusb320_interrupt
+[  382.813663] ENTER  TUSB320 CC INT WORK
+[  382.814170]  enter tusb320_interrupt
+[  382.814186] clear tusb320_interrupt
+[  382.814204] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.814207]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.814210]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.814226] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.814238] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.814282] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.814288] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.814293] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.814296] ========== SEND AC ONLINE EVENT===========
+[  382.823654] ENTER  TUSB320 CC INT WORK
+[  382.824165] clear tusb320_interrupt
+[  382.824178] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.824182]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.824186]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.824200] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.824212] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.840080] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.840092] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.840106] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.840113] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.840116] ========== SEND AC ONLINE EVENT===========
+[  382.854176] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  382.897800] android_usb: already disabled
+[  382.897926] android_usb: already disabled
+[  382.898172] uac2_bind_config :Enter !!!
+[  382.980391]  enter tusb320_interrupt
+[  382.984426] ENTER  TUSB320 CC INT WORK
+[  382.986566] clear tusb320_interrupt
+[  382.986595] tusb320_usb_cc_work otg_state:2 enable otg
+[  382.986605]  TUSB320 CC WORK  connect pc and do device mode 
+[  382.986613]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  382.986635] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.986653] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  382.986702] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.986717] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  382.986729] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  382.986739] ========== SEND AC ONLINE EVENT===========
+[  383.009251] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.070771] uac2_bind_config :Exit !!!
+[  383.080001] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[  383.080025] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[  383.080037] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[  383.084372] android_usb: already enabled
+[  383.084602] android_usb: already enabled
+[  383.085292] android_usb: already enabled
+[  383.085467] alsa_uac2_exit: enter !!!
+[  383.148747]  enter tusb320_interrupt
+[  383.153845] ENTER  TUSB320 CC INT WORK
+[  383.154616] clear tusb320_interrupt
+[  383.154649] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.154659]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.154669]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.154691] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.154710] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.154759] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.154773] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.154785] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.154795] ========== SEND AC ONLINE EVENT===========
+[  383.181249] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.204758] android_usb: already disabled
+[  383.205205] android_usb: already disabled
+[  383.205321] android_usb: already disabled
+[  383.205505] android_usb: already disabled
+[  383.205675] uac2_bind_config :Enter !!!
+[  383.316761]  enter tusb320_interrupt
+[  383.323919] ENTER  TUSB320 CC INT WORK
+[  383.324450] clear tusb320_interrupt
+[  383.324469] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.324473]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.324475]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.324491] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.324503] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.324546] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.324552] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.324558] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.324561] ========== SEND AC ONLINE EVENT===========
+[  383.384217] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.419269] uac2_bind_config :Exit !!!
+[  383.422393] android_usb: already enabled
+[  383.422645] android_usb: already enabled
+[  383.428501] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[  383.428526] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[  383.428537] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[  383.485019]  enter tusb320_interrupt
+[  383.493961] ENTER  TUSB320 CC INT WORK
+[  383.494625] clear tusb320_interrupt
+[  383.494657] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.494667]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.494676]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.494698] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.494717] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.494765] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.494780] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.494792] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.494802] ========== SEND AC ONLINE EVENT===========
+[  383.505589] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.531621] alsa_uac2_exit: enter !!!
+[  383.652782]  enter tusb320_interrupt
+[  383.653911] ENTER  TUSB320 CC INT WORK
+[  383.654725] clear tusb320_interrupt
+[  383.654757] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.654767]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.654777]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.654799] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.654817] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.654867] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.654881] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.654893] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.654903] ========== SEND AC ONLINE EVENT===========
+[  383.655043]  enter tusb320_interrupt
+[  383.665036] ENTER  TUSB320 CC INT WORK
+[  383.665916] clear tusb320_interrupt
+[  383.665946] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.665956]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.665966]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.665988] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.666006] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.689672] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.689702] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.689722] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.689734] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.689744] ========== SEND AC ONLINE EVENT===========
+[  383.706680] android_usb: already disabled
+[  383.724006] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.807134] android_usb: already disabled
+[  383.810357] android_usb: already disabled
+[  383.820782]  enter tusb320_interrupt
+[  383.824291] ENTER  TUSB320 CC INT WORK
+[  383.824812] clear tusb320_interrupt
+[  383.824843] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.824853]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.824862]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.824885] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.824904] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.824952] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.824965] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.824978] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.824987] ========== SEND AC ONLINE EVENT===========
+[  383.825310]  enter tusb320_interrupt
+[  383.834462] ENTER  TUSB320 CC INT WORK
+[  383.835856] clear tusb320_interrupt
+[  383.835886] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.835897]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.835906]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.835928] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.835947] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.842852] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.842882] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.842903] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.842916] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.842926] ========== SEND AC ONLINE EVENT===========
+[  383.855846] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  383.988838]  enter tusb320_interrupt
+[  383.993896] ENTER  TUSB320 CC INT WORK
+[  383.994372] clear tusb320_interrupt
+[  383.994390]  enter tusb320_interrupt
+[  383.994412] tusb320_usb_cc_work otg_state:2 enable otg
+[  383.994423]  TUSB320 CC WORK  connect pc and do device mode 
+[  383.994433]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  383.994454] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.994472] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  383.994519] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.994533] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  383.994545] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  383.994555] ========== SEND AC ONLINE EVENT===========
+[  383.995124] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  384.005009] ENTER  TUSB320 CC INT WORK
+[  384.006387] clear tusb320_interrupt
+[  384.006422] tusb320_usb_cc_work otg_state:2 enable otg
+[  384.006432]  TUSB320 CC WORK  connect pc and do device mode 
+[  384.006442]  TUSB320 CC WORK  Set_J3_Insert_USB_Status 
+[  384.006464] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  384.006482] [fiio_ctrl] fiio_set_usb_host_or_device usb in device mode!
+[  384.006554] [fiio_dwc2_platform] begin >>>>>>>>fiio_event_work 748 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  384.006570] [fiio_ctrl] fiio_usb_power_on usb power on !
+[  384.006582] [fiio_dwc2_platform] end >>>>>>>>fiio_event_work 757 JZ_CONNECT_PC JZ_CONTROLLOR_DEVIVE
+[  384.006592] ========== SEND AC ONLINE EVENT===========
+[  384.015362] [fiio_dwc2_platform] Exit:fiio_event_work --- 808  !!!!
+[  384.152314] uac2_bind_config :Enter !!!
+[  384.217062] uac2_bind_config :Exit !!!
+[  384.226290] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[  384.226316] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[  384.226327] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[  384.498219] alsa_uac2_exit: enter !!!
+[  384.584313] android_usb: already disabled
+[  384.584515] android_usb: already disabled
+[  384.584672] uac2_bind_config :Enter !!!
+[  384.676386] uac2_bind_config :Exit !!!
+[  384.679512] android_usb: already enabled
+[  384.679753] android_usb: already enabled
+[  384.679899] android_usb: already enabled
+[  384.685625] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[  384.685650] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[  384.685661] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[  384.846295] android_usb: already enabled
+[  384.851041] android_usb: already enabled
+[  384.856966] android_usb: already enabled
+[  384.860858] android_usb: already enabled
+[  384.861359] android_usb: already enabled
+[  385.024821] jz-dwc2 jz-dwc2: new device is high-speed
+[  385.054942] jz-dwc2 jz-dwc2: new address 12 1260
+[  385.057660] 
+[  385.057660] -----------DEVICE:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.057694] [android_setup] Found USB INSERT 
+[  385.057744]  USB is connect ? :1 
+[  385.057824] 
+[  385.057824] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.057968] 
+[  385.057968] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.058092] 
+[  385.058092] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.058192] 
+[  385.058192] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.058351] 
+[  385.058351] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.058458] 
+[  385.058458] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.058576] 
+[  385.058576] -----------CONFIG:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.058679] 
+[  385.058679] -----------CONFIG:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.058881] android_work: sent uevent USB_STATE=CONNECTED
+[  385.061960] 
+[  385.061960] -----------ENTER USB_REQ_SET_CONFIGURATION------
+[  385.062004] android_usb gadget: high-speed config #1: android
+[  385.062028]  [android_setup] USB_REQ_SET_CONFIGURATION
+[  385.062128] 
+[  385.062128] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.062194]  USB is connect ? :1 
+[  385.062265] 
+[  385.062265] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.062478] 
+[  385.062478] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.062664] 
+[  385.062664] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.073164] android_work: sent uevent USB_STATE=CONFIGURED
+[  385.079383] 
+[  385.079383] -----------ENTER USB_REQ_SET_INTERFACE------
+[  385.079556] 
+[  385.079556] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.079794] 
+[  385.079794] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.079924] 
+[  385.079924] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  385.080110] 
+[  385.080110] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  385.080136] non-core control reqa1.01 v0100 i0500 l4
+[  385.080145] 
+[  385.080145] -----------ENTER OTHER INTERFACE------
+[  385.080300] 
+[  385.080300] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  385.080323] non-core control reqa1.01 v0200 i0500 l1
+[  385.080332] 
+[  385.080332] -----------ENTER OTHER INTERFACE------
+[  385.080442] non-core control reqa1.02 v0100 i0500 l14
+[  385.080454] 
+[  385.080454] -----------ENTER OTHER INTERFACE------
+[  385.080559] non-core control reqa1.02 v0100 i0500 l110
+[  385.080571] 
+[  385.080571] -----------ENTER OTHER INTERFACE------
+[  385.082523] 
+[  385.082523] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  385.082558] non-core control req21.01 v0100 i0500 l4
+[  385.082566] 
+[  385.082566] -----------ENTER OTHER INTERFACE------
+[  385.082698] 
+[  385.082698] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  385.082718] non-core control reqa1.01 v0100 i0500 l4
+[  385.082726] 
+[  385.082726] -----------ENTER OTHER INTERFACE------
+[  385.113930] power_supply usb: power_supply_changed
+[  385.113974] power_supply battery: power_supply_changed
+[  385.113989] [fiio_axp173] try to set charger 100mA
+[  385.114020] power_supply usb: power_supply_changed_work
+[  385.114097] power_supply usb: uevent
+[  385.114114] power_supply usb: POWER_SUPPLY_NAME=usb
+[  385.114147] power_supply usb: prop ONLINE=1
+[  385.114169] power_supply usb: prop VOLTAGE_NOW=4527
+[  385.114187] power_supply usb: prop CURRENT_NOW=880
+[  385.114405] power_supply battery: power_supply_changed_work
+[  385.114463] power_supply battery: uevent
+[  385.114478] power_supply battery: POWER_SUPPLY_NAME=battery
+[  385.114508] power_supply battery: prop STATUS=Charging
+[  385.114529] power_supply battery: prop HEALTH=Good
+[  385.114548] power_supply battery: prop PRESENT=0
+[  385.114567] power_supply battery: prop TECHNOLOGY=Li-ion
+[  385.114586] power_supply battery: prop CAPACITY=5
+[  385.114604] power_supply battery: prop TEMP=30
+[  385.114624] power_supply battery: prop VOLTAGE_NOW=3993
+[  385.114644] power_supply battery: prop CURRENT_NOW=880
+[  385.115671] power_supply usb: power_supply_changed
+[  385.115761] power_supply usb: power_supply_changed_work
+[  385.115818] power_supply usb: uevent
+[  385.115833] power_supply usb: POWER_SUPPLY_NAME=usb
+[  385.115868] power_supply usb: prop ONLINE=1
+[  385.115890] power_supply usb: prop VOLTAGE_NOW=4527
+[  385.115909] power_supply usb: prop CURRENT_NOW=100
+[  385.120416] power_supply usb: uevent
+[  385.120446] power_supply usb: POWER_SUPPLY_NAME=usb
+[  385.120476] power_supply usb: prop ONLINE=1
+[  385.120496] power_supply usb: prop VOLTAGE_NOW=4527
+[  385.120516] power_supply usb: prop CURRENT_NOW=100
+[  385.132176] power_supply battery: uevent
+[  385.132208] power_supply battery: POWER_SUPPLY_NAME=battery
+[  385.132238] power_supply battery: prop STATUS=Charging
+[  385.132258] power_supply battery: prop HEALTH=Good
+[  385.132276] power_supply battery: prop PRESENT=0
+[  385.132295] power_supply battery: prop TECHNOLOGY=Li-ion
+[  385.132314] power_supply battery: prop CAPACITY=5
+[  385.132332] power_supply battery: prop TEMP=30
+[  385.132352] power_supply battery: prop VOLTAGE_NOW=3993
+[  385.132372] power_supply battery: prop CURRENT_NOW=100
+[  385.139868] power_supply usb: uevent
+[  385.139899] power_supply usb: POWER_SUPPLY_NAME=usb
+[  385.139929] power_supply usb: prop ONLINE=1
+[  385.139950] power_supply usb: prop VOLTAGE_NOW=4527
+[  385.139968] power_supply usb: prop CURRENT_NOW=100
+[  385.201046] 
+[  385.201046] 
+[  385.201046] ----------------------- afunc_disable-----------------------
+[  385.201046] 
+[  385.201115]  [android_disconnect] Found USB Remove 
+[  385.201138] alsa_uac2_exit: enter !!!
+[  385.201425]  USB is connect ? :1 
+[  385.209277] android_work: sent uevent USB_STATE=DISCONNECTED
+[  385.529964] android_usb: already disabled
+[  385.541746] android_usb: already disabled
+[  385.541848] android_usb: already disabled
+[  385.871541] android_usb: already disabled
+[  385.886099] android_usb: already disabled
+[  385.886192] android_usb: already disabled
+[  385.886263] android_usb: already disabled
+[  385.886335] android_usb: already disabled
+[  386.226165] uac2_bind_config :Enter !!!
+[  386.294223] uac2_bind_config :Exit !!!
+[  386.303449] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[  386.303474] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[  386.303485] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[  386.555970] android_usb: already enabled
+[  386.558978] android_usb: already enabled
+[  386.560760] jz-dwc2 jz-dwc2: new device is high-speed
+[  386.562942] android_usb: already enabled
+[  386.570922] android_usb: already enabled
+[  386.571315] android_usb: already enabled
+[  386.571445] android_usb: already enabled
+[  386.590884] jz-dwc2 jz-dwc2: new address 12 1260
+[  386.593512] 
+[  386.593512] -----------DEVICE:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.593551] [android_setup] Found USB INSERT 
+[  386.593642]  USB is connect ? :1 
+[  386.593691] 
+[  386.593691] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.593826] 
+[  386.593826] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.593966] 
+[  386.593966] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.594088] 
+[  386.594088] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.594224] 
+[  386.594224] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.594331] 
+[  386.594331] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.594482] 
+[  386.594482] -----------CONFIG:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.594596] 
+[  386.594596] -----------CONFIG:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.597264] android_work: sent uevent USB_STATE=CONNECTED
+[  386.598069] 
+[  386.598069] -----------ENTER USB_REQ_SET_CONFIGURATION------
+[  386.598114] android_usb gadget: high-speed config #1: android
+[  386.598138]  [android_setup] USB_REQ_SET_CONFIGURATION
+[  386.598239]  USB is connect ? :1 
+[  386.598274] 
+[  386.598274] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.598422] 
+[  386.598422] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.599988] 
+[  386.599988] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.600182] 
+[  386.600182] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.605657] android_work: sent uevent USB_STATE=CONFIGURED
+[  386.612147] 
+[  386.612147] -----------ENTER USB_REQ_SET_INTERFACE------
+[  386.612302] 
+[  386.612302] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.612428] 
+[  386.612428] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.612552] 
+[  386.612552] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[  386.612680] 
+[  386.612680] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  386.612704] non-core control reqa1.01 v0100 i0500 l4
+[  386.612713] 
+[  386.612713] -----------ENTER OTHER INTERFACE------
+[  386.612828] 
+[  386.612828] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  386.612848] non-core control reqa1.01 v0200 i0500 l1
+[  386.612858] 
+[  386.612858] -----------ENTER OTHER INTERFACE------
+[  386.612972] non-core control reqa1.02 v0100 i0500 l14
+[  386.612984] 
+[  386.612984] -----------ENTER OTHER INTERFACE------
+[  386.613094] non-core control reqa1.02 v0100 i0500 l110
+[  386.613106] 
+[  386.613106] -----------ENTER OTHER INTERFACE------
+[  386.613856] 
+[  386.613856] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  386.613882] non-core control req21.01 v0100 i0500 l4
+[  386.613891] 
+[  386.613891] -----------ENTER OTHER INTERFACE------
+[  386.614014] 
+[  386.614014] -----------ENTER USB_REQ_CLEAR_FEATURE/USB_REQ_SET_FEATURE------
+[  386.614033] non-core control reqa1.01 v0100 i0500 l4
+[  386.614041] 
+[  386.614041] -----------ENTER OTHER INTERFACE------
+[  386.905084] android_usb: already enabled
+[  386.907224] android_usb: already enabled
+[  386.908421] android_usb: already enabled
+[  386.912654] android_usb: already enabled
+[  386.916864] android_usb: already enabled
+[  387.251119] android_usb: already enabled
+[  387.257417] android_usb: already enabled
+[  387.259356] android_usb: already enabled
+[  387.262253] android_usb: already enabled
+[  387.599749] android_usb: already enabled
+[  387.601973] android_usb: already enabled
+[  387.605052] android_usb: already enabled
+[  387.607006] android_usb: already enabled
+[  387.610009] android_usb: already enabled
+[  387.944241] android_usb: already enabled
+[  387.944892] android_usb: already enabled
+[  387.947098] android_usb: already enabled
+[  387.950336] android_usb: already enabled
+[  387.953439] android_usb: already enabled
+[  387.959866] android_usb: already enabled
+[  388.294893] android_usb: already enabled
+[  388.299892] android_usb: already enabled
+[  388.301228] android_usb: already enabled
+[  388.307155] android_usb: already enabled
+[  388.309714] android_usb: already enabled
+[  442.202648] [blacklight]: backlight value:0 
+[  442.202682] -----------fiio_J3_Set_lcd_pwm:0 -----------
+[  452.204950]  >>>>>>>>>>>>>> enter shallow sleep 1<<<<<<<<<<<<<<<
+[  452.204988] [blacklight]: backlight value:0 
+[  452.204999] -----------fiio_J3_Set_lcd_pwm:0 -----------
+[  452.205052] graphics fb0:  jzfb_set_par
+[  452.205066] var->xres=340 var->yres=800 var->vmode=0 var->right_margin=0
+[  452.205079] mode->xres=340 mode->yres=800 mode->vmode=0 mode->right_margin=0
+[  452.205115] graphics fb0: before mcu init
+[  452.205131] jz-fb jz-fb: jzfb_slcd_display_off
+[  452.205142] ===============CONFIG_SLCDC_USE_TE==================
+[  452.205154] ssd1963 display off
+[  452.223306]  ssd1963 enter deep sleep 
+[ 3034.267626]  key irq, check  key level:1
+[ 3034.470142]  key irq, check  key level:0
+[ 3034.563489] 100ms timeout, key level:0 
+[ 3034.563553] ========= keys_release_timer end ========== 
+[ 3034.566415]  >>>>>>>>>>>>>>  exit shallow sleep 0 <<<<<<<<<<<<<<<
+[ 3034.566704] graphics fb0:  jzfb_set_par
+[ 3034.566720] var->xres=340 var->yres=800 var->vmode=0 var->right_margin=0
+[ 3034.566732] mode->xres=340 mode->yres=800 mode->vmode=0 mode->right_margin=0
+[ 3034.566768] graphics fb0: before mcu init
+[ 3034.566779] jzfb_slcd_mcu_init:Enter!!!
+[ 3034.566790] jzfb_slcd_mcu_init g_cur_lcd_rotate=0
+[ 3034.566805] jz-fb jz-fb: jzfb_slcd_mcu_init 
+[ 3034.709681] fiio_spi_lcd_init_data:Enter!!!
+[ 3034.980377] fiio_spi_lcd_init_data:Exit!!!
+[ 3034.980402] jzfb_slcd_mcu_init:Exit!!!
+[ 3034.980413] ===============CONFIG_SLCDC_USE_TE==================
+[ 3034.980433] [blacklight]: backlight value:0 
+[ 3034.980445] -----------fiio_J3_Set_lcd_pwm:0 -----------
+[ 3034.980783] [blacklight]: backlight value:229 
+[ 3034.980800] -----------fiio_J3_Set_lcd_pwm:229 -----------
+[ 3036.558365] 
+[ 3036.558365] 
+[ 3036.558365] ----------------------- afunc_disable-----------------------
+[ 3036.558365] 
+[ 3036.558439]  [android_disconnect] Found USB Remove 
+[ 3036.558482]  USB is connect ? :1 
+[ 3036.558835] alsa_uac2_exit: enter !!!
+[ 3036.559685] android_work: sent uevent USB_STATE=DISCONNECTED
+[ 3065.365220] android_usb: already disabled
+[ 3065.366780] adb_bind_config
+[ 3065.376008] -----------[fiio_dwc2_platform] ---------- dwc2_handle_common_intr 591 gintsts=0x4 in otg id state change now!!!
+[ 3065.376032] -----------[fiio_dwc2_platform] ---------- ++OTG Interrupt gotgint=4 [b_peripheral]
+[ 3065.376044] -----------[fiio_dwc2_platform] ----------  ++OTG Interrupt: Session End Detected++ (b_peripheral)
+[ 3065.606253] jz-dwc2 jz-dwc2: new device is high-speed
+[ 3065.636522] jz-dwc2 jz-dwc2: new address 12 1260
+[ 3065.639416] 
+[ 3065.639416] -----------DEVICE:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.639448] [android_setup] Found USB INSERT 
+[ 3065.639498]  USB is connect ? :1 
+[ 3065.639624] 
+[ 3065.639624] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.639752] 
+[ 3065.639752] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.639924] 
+[ 3065.639924] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.640044] 
+[ 3065.640044] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.640186] 
+[ 3065.640186] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.640298] 
+[ 3065.640298] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.640463] 
+[ 3065.640463] -----------CONFIG:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.640567] 
+[ 3065.640567] -----------CONFIG:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3065.640762] android_work: sent uevent USB_STATE=CONNECTED
+[ 3065.645332] 
+[ 3065.645332] -----------ENTER USB_REQ_SET_CONFIGURATION------
+[ 3065.645374] android_usb gadget: high-speed config #1: android
+[ 3065.645418]  [android_setup] USB_REQ_SET_CONFIGURATION
+[ 3065.645524]  USB is connect ? :1 
+[ 3065.653987] android_work: sent uevent USB_STATE=CONFIGURED
+[ 3066.164924] 
+[ 3066.164924] -----------STRING:ENTER USB_REQ_GET_DESCRIPTOR------
+[ 3106.731635] adbd (784): /proc/784/oom_adj is deprecated, please use /proc/784/oom_score_adj instead.

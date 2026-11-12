@@ -1,0 +1,27 @@
+Mixer name: 'phoenix'
+Number of controls: 24
+ctl	type	num	name                                     value
+0	INT	2	Master Playback Volume                   0 0
+1	INT	2	TITANIUM Playback Volume                 0 0
+2	INT	2	Playback Mixer Volume                    0 0
+3	INT	2	Digital Capture Volume                   26 0
+4	INT	2	Digital Capture Mixer Volume             0 0
+5	INT	1	Mic Volume                               7
+6	BOOL	1	ADC High Pass Filter Switch              Off
+7	BOOL	1	Digital Playback mute                    On
+8	ENUM	1	Mix0                                     normal inputs
+9	INT	1	ES9218 DACL Volume(0.5db/per)            190
+10	INT	1	ES9218 DACR Volume(0.5db/per)            190
+11	BOOL	1	ES9218 DAC Balance                       On
+12	INT	1	ES9218 Playback Volume                   23
+13	BOOL	1	ES9218 DAC Is Open?                      Off
+14	INT	1	J3 ADC Record Gain(0-7)                  7
+15	INT	1	J3 DAC mute time(ms)                     10
+16	INT	1	J3 DAC unmute time(ms)                   1
+17	ENUM	1	Mix1                                     normal inputs
+18	ENUM	1	Mix2                                    
+19	ENUM	1	Mix3                                     normal inputs
+20	ENUM	1	Mux0                                     Playback DAC only
+21	ENUM	1	Mux2                                    
+22	BOOL	1	VDIGITAL BYPASS Switch                   Off
+23	ENUM	1	ADC Mux                                  AMIC ON

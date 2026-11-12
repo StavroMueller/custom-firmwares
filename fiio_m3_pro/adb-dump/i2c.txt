@@ -1,0 +1,13 @@
+/sys/bus/i2c/devices/1-001a cst3xx
+/sys/bus/i2c/devices/2-0034 axp173
+/sys/bus/i2c/devices/2-0047 tusb320
+/sys/bus/i2c/devices/2-0057 at24
+/sys/bus/i2c/devices/2-0058 dummy
+/sys/bus/i2c/devices/2-0059 dummy
+/sys/bus/i2c/devices/2-005a dummy
+/sys/bus/i2c/devices/2-005b dummy
+/sys/bus/i2c/devices/2-005c dummy
+/sys/bus/i2c/devices/2-005d dummy
+/sys/bus/i2c/devices/2-005e dummy
+/sys/bus/i2c/devices/i2c-1 i2c1
+/sys/bus/i2c/devices/i2c-2 i2c2
