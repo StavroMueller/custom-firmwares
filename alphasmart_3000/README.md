@@ -41,7 +41,7 @@ SDS and Wintertree). They stay out of git; `SOURCES.md` covers why.
 
 1. **Read-only host tool.** Python + pyserial/libusb, implementing the
    updater protocol's VERSION, FLASH_NAME, FLASH_SIZE and READ commands.
-   Use it to dump our unit's full 1 MB flash. Nothing gets written, so there's
+   Use it to dump our unit's whole flash (512 KB or 1 MB). Nothing gets written, so there's
    no brick risk, and it tells us the machine ID and which OS is installed.
 2. **Prove recovery.** Enter bootstrap mode (key combo), handshake over the
    printer port, and load the stock RAM updater. Only after this works do we
