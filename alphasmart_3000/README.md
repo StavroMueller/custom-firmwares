@@ -14,13 +14,17 @@ stock OS, then possibly a replacement OS. Nothing has run on hardware yet.
 
 ## Status
 
-- **Known:** CPU, memory map, flash and RAM parts, LCD controllers, USB
-  chip, updater boot flow. See `HARDWARE.md`.
+- **Known:** CPU (MC68EZ328 DragonBall EZ), memory map, every GPIO pin, LCD
+  and keyboard wiring, flash layout, the full updater protocol (serial and
+  USB), the flash-file format, and a hardware recovery path (EZ328 bootstrap
+  mode via a key combo). See `HARDWARE.md` and `SOFTWARE.md`.
 - **Have:** original AlphaSmart OS source (Mar 2000, Apr 2000, May 2003
-  snapshots), prebuilt binaries, the Windows simulator project, and the
-  official ASM 2.3 updater.
-- **Not yet done:** a flash dump from our own unit, a working toolchain
-  build, any code running on hardware.
+  snapshots), prebuilt binaries with full symbol maps, the Windows simulator
+  project, and the official ASM 2.3 updater.
+- **Open question:** whether System 3 (the 2005 OS that added loadable
+  SmartApplets) loads betawise `.OS3KApp` files. The source discs predate
+  System 3; its binaries are inside the unopened ASM 2.3 InstallShield cabs.
+- **Not yet done:** anything on hardware.
 
 ## Getting the source discs
 
@@ -35,12 +39,19 @@ SDS and Wintertree). They stay out of git; `SOURCES.md` covers why.
 
 ## Plan
 
-1. **Applet on stock OS.** Build a betawise "hello world" `.OS3KApp`, load it
-   with AlphaSmart Manager 2, confirm it runs. Proves the toolchain and the
-   load path with zero brick risk.
-2. **Flash dump.** Read our unit's 1 MB flash (updater protocol or applet)
-   and diff it against the MAME dump and the prebuilt binaries.
-3. **Emulator bench.** Get MAME's `asma3k` driver past its early-boot hang
-   (suspected DragonBall-EZ core bug) so OS work can be tested off-device.
-4. **Replacement OS.** Only after 1–3, and only once the recovery path in
-   `SOFTWARE.md` has been tested on the real unit.
+1. **Read-only host tool.** Python + pyserial/libusb, implementing the
+   updater protocol's VERSION, FLASH_NAME, FLASH_SIZE and READ commands.
+   Use it to dump our unit's full 1 MB flash. Nothing gets written, so there's
+   no brick risk, and it tells us the machine ID and which OS is installed.
+2. **Prove recovery.** Enter bootstrap mode (key combo), handshake over the
+   printer port, and load the stock RAM updater. Only after this works do we
+   write anything.
+3. **Hello world from RAM.** m68k-elf-gcc build linked for RAM, loaded with
+   SEND_BLOCK + EXECUTE. Drives the LCD and keyboard directly.
+4. **Applet path.** Either a betawise `.OS3KApp` on System 3 (if the open
+   question resolves yes), or our own image flashed as an "applet" at
+   0x420030, signature last, sectors 0–3 never touched.
+5. **Emulator bench.** Get MAME's `asma3k` past its early-boot hang and fix
+   its LCD geometry, so OS work can be tested off-device.
+6. **Replacement OS.** Written fresh against our docs, shipped as an
+   applet so the stock Startup Manager and updater stay as the safety net.
