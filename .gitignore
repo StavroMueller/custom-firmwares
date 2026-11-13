@@ -5,3 +5,6 @@ fiio_m3_pro/rockbox/
 fiio_m3_pro/build-*/
 fiio_m3_pro/sdcard/
 fiio_m3_pro/themes/tui-only/
+
+# AlphaSmart 3000: archive.org discs (third-party copyrighted; re-fetch with tools/fetch_archive.sh)
+alphasmart_3000/archive/
