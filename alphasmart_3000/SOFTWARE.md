@@ -28,8 +28,11 @@ and `Chameleon Update Process.pdf`.
 
 - The SM checks **no keys** at power-on. The planned "update keys" were never
   built.
-- Copying the updater to RAM overwrites RAM from 0x410 up, so user files
-  may be lost (INFERRED from `SystemModule.c:1234-1237`).
+- **Entering the updater can destroy the user's files.** The updater is
+  copied to RAM 0x410, where the applet keeps its data. The source says so:
+  "the contents of all the files will be corrupted possibly"
+  (`S00/Software/ModuleSources/SystemModule.c:1234-1237`; RAM layout in
+  `S00/Software/AlphaSmartApps/AlphaWord/linkerROM.spc:17`). CONFIRMED.
 
 ### Getting into the updater
 
@@ -99,7 +102,7 @@ values are big-endian. Ref: `S00/Software/ModuleSources/UpdaterCommands.h`.
 | 70 | EXECUTE | addr; replies first, then jumps |
 | 80 | RESET | — |
 | 85 | SEND_EXPAND_PROGRAM | clen, flash addr, ulen, zlib data (≤16 KB out) |
-| 90 | READ | addr, len ≤ 50: memory peek, enough to dump flash |
+| 90 | READ | addr, len ≤ 50: memory peek, enough to dump flash. **The device does not check the length**; it copies into a 53-byte buffer (`UpdaterMain.c`, `DebugBreakIfTrue` only), so >50 overflows it |
 | 100 / 110 | FLASH_NAME / FLASH_SIZE | — |
 | 120 | POWER_OFF | — |
 
