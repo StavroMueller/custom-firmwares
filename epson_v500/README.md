@@ -31,12 +31,51 @@ scanimage / GUI
 The registry file `/var/lib/iscan/interpreter` links the USB ID to the plugin
 and the firmware path. If that line is missing, every USB transfer times out.
 
-**Not verified yet:** whether the plugin does more than upload the firmware.
-The name "interpreter" suggests it runs the ESC/I command set on the host and
-drives a simple device. If it does, an open driver also has to rebuild the
-shading and calibration logic. If it only uploads firmware and then passes
-ESC/I through, an open driver is small. Taking the `.so` apart answers this,
-and it decides how big option B below is.
+## What's inside the plugin (from static analysis)
+
+The bundle downloaded with a matching sha256. It holds `iscan` 2.30.4,
+`iscan-data` 1.39.2 and `iscan-plugin-gt-x770` 2.1.3. The plugin itself is
+`/usr/lib/iscan/libesint7C.so.2.0.1`: a stripped x86-64 C++ library of 320 KB.
+
+**The plugin interface is small.** The epkowa backend `dlsym`s these and
+nothing else:
+
+| Symbol | Shape (from disassembly) | Role |
+|---|---|---|
+| `int_init` | `bool (int fd, read_cb, write_cb)` | stores the USB callbacks and builds the emulator |
+| `int_write` / `int_read` | `(buf, len)` | ESC/I commands in, ESC/I replies and image data out |
+| `int_fini` | `void ()` | tears down |
+| `int_power_saving_mode` | | lamp/sleep timer |
+| `function_s_0` / `function_s_1` | `(int,int,int,int,double*)` / `(u8*,u8*,int,int,double*,u8)` | image helpers the backend calls |
+
+The backend also probes for `int_init_with_ctrl`.
+
+**The plugin runs ESC/I on the host and drives the hardware directly.** Its
+symbols are obfuscated (`esint7C_SYMBOL_NNN`), but the C++ mangling kept the
+struct names: `stESC_CMD`, `stScanning_Param`, `stMotor_Control`,
+`stCCD_Time`, `stADC`, `stGainTable_Param`, `stALOCTable_Param`,
+`stShading`, `stShift`, `stSH_SETTING`. So once the firmware is loaded, the
+scanner is a low-level device.
+
+That means an open driver has to rebuild all of these:
+- motor control
+- sensor (CCD) timing
+- analog front-end gain and offset (the ADC)
+- shading calibration
+- RGB line-shift correction
+
+This is the genesys-backend kind of job, not a firmware loader.
+
+**The firmware is plain data, not encrypted.** `esfw7C.bin` is 65,793 bytes
+(0x10101), entropy 6.1 bits/byte, and contains the string
+`EPSON   GT-X770         1.02`. The plugin loads it itself, from
+`$ISCAN_FW_DIR/esfw7C.bin` or else `/usr/share/iscan/esfw7C.bin`. Its CPU
+architecture is not identified yet.
+
+The plugin only reaches the scanner through the two callbacks the host passes
+to `int_init`. That gives us a clean place to tap the traffic: our own host
+program loads the plugin, hands it logging callbacks, and records every USB
+transfer next to the ESC/I command that caused it.
 
 ## Options
 
@@ -70,7 +109,9 @@ hardware you own falls under the EULA's personal-use grant.
 
 ## Next steps
 
-- [ ] Download the bundle and check its sha256. Run `nm -D` and `strings` on the
-      plugin `.so`, and identify the CPU architecture of `esfw7C.bin`.
-- [ ] Bring up option A on an x86-64 Linux machine. Take the USB captures.
-- [ ] Decide between B and C based on what the plugin turns out to do.
+- [x] Download the bundle, check its sha256, and do a first static pass on the plugin.
+- [ ] Trace harness: load the plugin with logging USB callbacks. Run it once
+      without the scanner to capture the firmware upload, then with the
+      scanner to capture each command.
+- [ ] Identify the CPU architecture of `esfw7C.bin`.
+- [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).
