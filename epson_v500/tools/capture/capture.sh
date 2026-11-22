@@ -29,7 +29,7 @@ ctx=$(mktemp -d)
 trap 'rm -rf "$ctx"' EXIT
 tar xzf "$BUNDLE" -C "$ctx"
 mkdir "$ctx/debs"
-find "$ctx" -name '*.deb' -not -path "$ctx/debs/*" -exec cp {} "$ctx/debs/" \;
+find "$ctx" -type f -name '*.deb' -not -path "$ctx/debs/*" -exec cp {} "$ctx/debs/" \;
 cp "$HERE/Dockerfile" "$HERE/scan.sh" "$ctx/"
 chmod +x "$ctx/scan.sh"
 docker build -q -t "$IMAGE" "$ctx" >/dev/null

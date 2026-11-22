@@ -14,7 +14,10 @@ RUN dpkg -i --force-depends /tmp/debs/iscan-data_*.deb /tmp/debs/iscan_*.deb /tm
  && rm -rf /tmp/debs \
  && ln -sf /usr/lib/sane/libsane-epkowa.so.1 /usr/lib/x86_64-linux-gnu/sane/libsane-epkowa.so.1 \
  && grep -qx epkowa /etc/sane.d/dll.d/iscan \
- && grep -q 0x0130 /var/lib/iscan/interpreter
+ && grep -q 0x0130 /var/lib/iscan/interpreter \
+ && : > /etc/sane.d/dll.conf
+# Only epkowa (from dll.d/iscan) is loaded: Ubuntu's ~70 other backends cost
+# 14 s of probing, and one of them segfaults in sane_exit.
 
 COPY scan.sh /usr/local/bin/scan
 ENTRYPOINT ["/usr/local/bin/scan"]
