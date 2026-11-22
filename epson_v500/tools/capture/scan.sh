@@ -1,8 +1,9 @@
 #!/bin/sh
 # Runs inside the container: one scanimage step against the first epkowa device.
-#   scan list            list devices (opening one uploads the firmware)
-#   scan options         print the scanner's options (resolutions, modes, ...)
-#   scan <dpi> <file>    full-bed colour scan to /out/<file> as PNG
+#   scan list                       list devices (opening one uploads the firmware)
+#   scan options                    print the scanner's options (resolutions, modes, ...)
+#   scan <file> [scanimage args]    scan to /out/<file> as PNG, e.g.
+#                                   scan a.png --mode Color --resolution 400 -l 20 -t 30 -x 60 -y 40
 set -eu
 # stdbuf: if scanimage crashes on exit, its output is still written.
 if [ "$1" = list ]; then
@@ -14,4 +15,5 @@ echo "device: $dev" >&2
 if [ "$1" = options ]; then
     exec stdbuf -oL scanimage -d "$dev" --all-options
 fi
-exec scanimage -d "$dev" --mode Color --resolution "$1" --format=png -o "/out/$2"
+file=$1; shift
+exec scanimage -d "$dev" --format=png -o "/out/$file" "$@"

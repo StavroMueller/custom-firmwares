@@ -123,6 +123,63 @@ padding, extra lines for RGB line shift) is the next thing to work out.
 **More status values:** `1a 81` and `5a 81` while the firmware starts; `58 81`
 while data is being read, so bit 0x40 is probably "busy".
 
+## Image data
+
+Decoded by `v500/raw.py`, checked against Epson's own output for the same
+scan: 99.9% of pixels identical, the rest off by one level, except 0.04%
+along sharp colour edges (test: `tests/test_raw.py`).
+
+- Each `1e 47` bulk read ends in an 8-byte trailer, e.g.
+  `02 00 b4 00 00 00 80 00`. Bit 0x80 of byte 1 is set on the last read.
+- After dropping trailers: lines of 1,920 RGB pixels, 8 bits, interleaved.
+  For a 1696 x 2339 scan the scanner sent 2,349 lines: 10 extra.
+- Line shift at 200 dpi: a spot on the glass reaches blue first, green 5
+  lines later, red 10 lines later.
+- The image is the leftmost `width` pixels of each line.
+- Colour correction happens on the host, with this matrix from Epson's
+  `libsane-epkowa` (offset `0x3ee70`), truncated to 0..255:
+
+```
+R' =  1.247  R - 0.2041 G - 0.0429 B
+G' = -0.192  R + 1.2918 G - 0.0998 B
+B' = -0.01   R - 0.2503 G + 1.2603 B
+```
+
+So the scanner already applies shading correction and the tables uploaded
+with `1e 84`. An open driver has to compute those tables itself (next
+section).
+
+## The `1e` commands in a scan, in order
+
+From one 200 dpi colour scan, and a repeat of it to see which values move.
+Values marked *varies* changed between the two runs, so the driver computes
+them from calibration.
+
+| Phase | Commands | What they seem to do |
+|---|---|---|
+| setup | `1e 84` x3 (type `03`, 256 B) | identity gamma, one table per colour |
+| | `1e 57` (42 B) | scan parameters |
+| | `1e a2 01` | probably lamp on (see `1e a2 00` below) |
+| | `1e 87 00` -> 10 B `01 5b e9 ff f4 00 f0 00 b0 00` | unknown, same both runs |
+| | `1e 86` -> u32 | carriage position: `0` here, `51` after a 51-step move |
+| analog gain | `1e 31` `80 00 80 00 80 00 ...`, then `1e 46`, poll `1e 04` until `01`, then `1e 92` -> 12 B | the scanner measures per-channel levels itself. Twice. |
+| | `1e 31` <the `1e 92` reply> | writes the measured levels back. 3 u16 (about 138, 136, 142, *varies*) and 3 ASCII digits (`304`, *varies*) |
+| | `1e 11 04` | unknown |
+| sensor | `1e 21` (26 B), `1e 84` type `07`, `1e 22` (12 B), `1e 41` (22 B), `1e 42` (18 B), `1e 43` (12 B) | sensor and window setup; `1e 41` byte 4 is a line count (4, 32, 16, then 2349 for the image) |
+| calibration | `1e 47` -> 392 B; `1e 01` move 51 steps; `1e 47` -> 983 KB in 20 reads; `1e a2 00` (lamp off?); `1e 47` -> 492 KB in 10 reads; `1e a2 01` | dark and white reference lines |
+| | `1e 42` | 9 u16: first three ~25,000 (*varies*, per-colour gain), then three pairs ~1,200-1,500 (*varies*, per-colour offset, each twice) |
+| tables | `1e 84` type `02` x3 at `0x3800`, `0x3820`, `0x3840`, 8,192 B each | a 4,096-entry u16 curve per colour, starting `0 40 59 74 87`: looks like a tone curve |
+| | `1e 84` type `05` (512 or 1,024 B) | decreasing u16 `2500 2375 ...`: a motor acceleration ramp |
+| | `1e 84` type `06`, 30,720 B | shading table: 16 bytes per pixel for 1,920 pixels (*varies*) |
+| scan | `1e 01` `94 6e 00 00 78 00 ff 01 ff 01 00 00` | move 28,308 steps while scanning |
+| | `1e 47` -> image | 294 reads |
+
+**`1e 84` header, 8 bytes:** byte 0 table type; bytes 2-3 an address for
+type `02` (`0x3800` + `0x20` per colour); bytes 6-7 the length in units of
+256 bytes (`01 00` = 256, `78 00` = 30,720). Holds for all 11 uploads.
+
+**`1e 01`, 12 bytes:** bytes 0-3 are a u32 step count. The rest is unknown.
+
 ## Still to capture
 
 - The meaning of the other status bits returned by `1b 03`.

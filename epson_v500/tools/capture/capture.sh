@@ -59,9 +59,17 @@ step() {
     echo "$name: exit $rc, $(stat -c %s "$OUT/$name.pcap") bytes captured"
 }
 
+# Each scan differs from another in one setting, so its effect on the
+# protocol stands out. Region scans (-l -t -x -y, in mm) keep high dpi quick.
+REGION="-l 20 -t 30 -x 60 -y 40"
 step 01-list list
 step 01-options options
-step 02-scan-75dpi 75 02-scan-75dpi.png
-step 03-scan-300dpi 300 03-scan-300dpi.png
+step 02-color-200-full 02-color-200-full.png --mode Color --resolution 200
+step 03-color-200-region 03-color-200-region.png --mode Color --resolution 200 $REGION
+step 04-color-400-region 04-color-400-region.png --mode Color --resolution 400 $REGION
+step 05-color-800-region 05-color-800-region.png --mode Color --resolution 800 $REGION
+step 06-gray-200-region 06-gray-200-region.png --mode Gray --resolution 200 $REGION
+step 07-color16-200-region 07-color16-200-region.png --mode Color --depth 16 --resolution 200 $REGION
+step 08-color-200-offset 08-color-200-offset.png --mode Color --resolution 200 -l 50 -t 100 -x 60 -y 40
 
 echo "done: $OUT"
