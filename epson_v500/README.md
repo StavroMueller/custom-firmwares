@@ -1,6 +1,43 @@
-# Epson Perfection V500 Photo: driver investigation
+# Epson Perfection V500 Photo: our own driver, and a scan booth
 
-Research notes on the V500 (also sold in Japan as the GT-X770). No code yet.
+Research notes, protocol notes and code for the V500 (sold in Japan as the
+GT-X770).
+
+| Path | What |
+|---|---|
+| `v500/` | our driver: the scanner interface, a fake backend, and the firmware loader |
+| `booth/` | the party scan booth: a FastAPI server and an iPad web page |
+| `tools/trace.c` | runs Epson's plugin against a fake scanner and logs its USB traffic |
+| `PROTOCOL.md` | what we know about the USB protocol |
+| `DESIGN.md` | the driver phases and the booth design |
+
+## Running the booth
+
+```sh
+cd epson_v500
+pip install -e '.[dev]'
+python -m pytest                  # no scanner, no network needed
+python -m booth                   # http://<host>:8000, open it on the iPad
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BOOTH_SCANNER` | `fake` | backend (only the fake exists so far) |
+| `BOOTH_DPI` | `150` | scan resolution |
+| `BOOTH_ROTATE` | `0` | degrees clockwise to turn scans upright, for the vertical mount |
+| `BOOTH_PHOTOS_DIR` | `photos` | where scans are saved |
+| `BOOTH_FAKE_SECONDS` | `8` | how long a fake scan takes |
+| `BOOTH_FAKE_IMAGES` | none | folder of JPEGs for the fake scanner to replay |
+
+On the iPad, open the page in Safari, then Share > Add to Home Screen. Turn
+on Guided Access to lock the iPad to the app.
+
+Uploading firmware to a real scanner, untested so far (bring your own
+`esfw7C.bin`):
+
+```sh
+python -m v500.firmware /path/to/esfw7C.bin
+```
 
 ## What the scanner is
 

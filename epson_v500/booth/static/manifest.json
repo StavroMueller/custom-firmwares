@@ -1,0 +1,9 @@
+{
+  "name": "Press & Scan",
+  "short_name": "Scan Booth",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0814",
+  "theme_color": "#0b0814"
+}

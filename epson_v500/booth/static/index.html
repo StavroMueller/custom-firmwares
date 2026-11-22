@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b0814">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Press &amp; Scan</title>
+</head>
+<body>
+  <main>
+    <section id="attract" class="screen">
+      <div class="pane">
+        <h1>Press <span class="amp">&amp;</span> Scan</h1>
+        <ol class="steps">
+          <li><b>1</b> Press your face <em>gently</em> to the glass</li>
+          <li><b>2</b> Close your eyes, the light is bright</li>
+          <li><b>3</b> Hold still until the light passes</li>
+        </ol>
+      </div>
+      <div class="pane center">
+        <button id="scan-button" class="big-button">Scan me</button>
+        <button class="link" data-goto="gallery">Gallery</button>
+      </div>
+    </section>
+
+    <section id="countdown" class="screen" hidden>
+      <div id="count" class="count">3</div>
+      <p class="hint">Eyes closed. Press gently.</p>
+    </section>
+
+    <section id="scanning" class="screen" hidden>
+      <div class="pane photo">
+        <div class="frame">
+          <canvas id="canvas"></canvas>
+          <div id="scan-line" class="scan-line"></div>
+        </div>
+      </div>
+      <div class="pane center">
+        <h2>Hold still!</h2>
+        <div class="progress"><div id="progress-bar"></div></div>
+        <p id="progress-text" class="hint">0%</p>
+      </div>
+    </section>
+
+    <section id="result" class="screen" hidden>
+      <div class="pane photo">
+        <img id="result-photo" alt="Your scan">
+      </div>
+      <div class="pane center">
+        <h2>Looking good!</h2>
+        <img id="result-qr" class="qr" alt="QR code for your photo">
+        <p class="hint">Scan to take it home<br><small>(join the booth Wi‑Fi first)</small></p>
+        <button class="big-button small" data-goto="attract">Again</button>
+      </div>
+    </section>
+
+    <section id="gallery" class="screen" hidden>
+      <header class="bar">
+        <h2>Gallery</h2>
+        <button class="link" data-goto="attract">Back</button>
+      </header>
+      <div id="gallery-grid" class="grid"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

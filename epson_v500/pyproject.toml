@@ -1,0 +1,26 @@
+[project]
+name = "v500-booth"
+version = "0.1.0"
+description = "Open driver for the Epson Perfection V500 Photo, and a scan photo booth"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "numpy",
+    "pillow",
+    "pyusb",
+    "segno",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[tool.setuptools]
+packages = ["v500", "booth"]
+
+[tool.setuptools.package-data]
+booth = ["static/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
