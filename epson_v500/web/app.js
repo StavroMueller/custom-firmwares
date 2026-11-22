@@ -206,7 +206,12 @@ ui.scan.addEventListener("click", async () => {
   ui.progress.value = 0;
   try {
     const io = state.io;
-    if (!isLoaded(await status(io))) {
+    const before = await status(io);
+    if (before[0] & 0x40) {
+      // busy before we've asked for anything: an earlier scan never finished
+      throw new Error("The scanner is stuck from an earlier scan (status busy). Switch it off and on, then Connect and scan again.");
+    }
+    if (!isLoaded(before)) {
       if (!state.firmware) throw new Error("The scanner needs its firmware: pick your esfw7C.bin first.");
       say("Uploading firmware…");
       await upload(state.firmware, io);
