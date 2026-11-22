@@ -16,14 +16,14 @@ GT-X770).
 
 `web/` is the whole driver in dependency-free JavaScript, and a page that
 uses it. It works in Chrome or Edge on a computer: iPads and Safari have no
-WebUSB. With the udev rule below installed:
+WebUSB. On Linux, install the udev rule below first.
 
-```sh
-cd epson_v500/web
-python3 -m http.server 8000      # WebUSB needs localhost or https
-```
+The easiest way: open **`web/dist/v500-scanner.html`**, one self-contained
+file, by double-clicking it. No server, no install. (Or serve `web/` with
+`python3 -m http.server` and open <http://localhost:8000>; WebUSB needs
+localhost, https or a local file.)
 
-Open <http://localhost:8000>, click Connect and pick the scanner. Then pick
+Click Connect and pick the scanner. Then pick
 Epson's Linux driver download, `iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz`
 from Epson's support site. The page takes the firmware out of it and keeps
 it in the browser for next time. Choose a resolution (200, 400 or 800 dpi),
@@ -36,7 +36,9 @@ can't build yet.
 replays a capture (serve `epson_v500/` and open
 `/web/test/sim.html?template=/captures/<ts>/02-color-200-full.usblog`). The
 JS tests run with `cd web && node --test`; `tests/test_web.py` checks the JS
-driver against the Python one on every capture, byte for byte.
+driver against the Python one on every capture, byte for byte. After
+changing `web/`, rebuild the single file with `node web/tools/build.mjs`
+(a test checks it is up to date).
 
 ## Running the booth
 

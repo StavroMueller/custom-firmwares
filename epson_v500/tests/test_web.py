@@ -75,3 +75,9 @@ def test_retarget_matches_python(path):
 def test_js_unit_tests():
     out = subprocess.run([NODE, "--test"], capture_output=True, text=True, cwd=ROOT / "web")
     assert out.returncode == 0, out.stdout + out.stderr
+
+
+@needs_node
+def test_single_file_page_is_up_to_date():
+    out = subprocess.run([NODE, "web/tools/build.mjs", "--check"], capture_output=True, text=True, cwd=ROOT)
+    assert out.returncode == 0, out.stderr

@@ -1,0 +1,1736 @@
+<!-- Built by web/tools/build.mjs from web/: edit those, not this file. -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V500 Scanner</title>
+  <style>
+:root {
+  --bg: #f6f5f2;
+  --panel: #ffffff;
+  --ink: #1d1c1a;
+  --muted: #6b6862;
+  --line: #e2dfd8;
+  --accent: #2f5fd0;
+  --accent-ink: #ffffff;
+  --bad: #b3261e;
+  --ok: #1e7a3c;
+  --canvas-bg: #e9e6df;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615;
+    --panel: #1f1f1d;
+    --ink: #ecebe7;
+    --muted: #a09d96;
+    --line: #34332f;
+    --accent: #7fa2ff;
+    --accent-ink: #10131a;
+    --bad: #ff8a80;
+    --ok: #7fd39a;
+    --canvas-bg: #262624;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header { padding: 24px 24px 8px; }
+h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+.sub { margin: 4px 0 0; color: var(--muted); }
+
+main {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) 1fr;
+  gap: 20px;
+  padding: 16px 24px 24px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  main { grid-template-columns: 1fr; padding: 12px 16px 16px; }
+  header { padding: 16px 16px 4px; }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px 18px;
+}
+
+h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 18px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+h2:first-child { margin-top: 0; }
+.n {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+.grid.four { grid-template-columns: repeat(4, 1fr); }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.file { margin: 8px 0 10px; }
+.file > span:first-child { color: var(--ink); }
+
+input, select, button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-width: 0;
+}
+input[type="file"] { padding: 6px; }
+
+button { cursor: pointer; }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 8px 22px; }
+button.link { background: none; border: none; padding: 0; color: var(--muted); text-decoration: underline; font-size: 13px; }
+
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+code { font-size: 0.92em; }
+
+progress { width: 100%; height: 8px; accent-color: var(--accent); }
+.status { min-height: 1.4em; margin: 8px 0; }
+.status.bad { color: var(--bad); }
+.status.ok { color: var(--ok); }
+
+details { margin-top: 8px; }
+details.advanced { margin: 4px 0 10px; }
+summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+pre {
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+.banner {
+  margin: 8px 24px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  border-radius: 8px;
+}
+
+.preview {
+  background: var(--canvas-bg);
+  border-radius: 12px;
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: hidden;
+}
+canvas {
+  max-width: 100%;
+  max-height: 80vh;
+  image-rendering: auto;
+  box-shadow: 0 1px 8px rgb(0 0 0 / 0.15);
+  background: #fff;
+}
+canvas[width="0"] { display: none; }
+</style>
+  <script type="module">
+// ---- v500/bundle.js ----
+const __m1 = (() => {
+// Find esfw7C.bin inside Epson's Linux driver download, in the browser.
+//
+// The bundle (iscan-gt-x770-bundle-*.tar.gz) is gzip -> tar, holding the
+// plugin package iscan-plugin-gt-x770_*.deb: an `ar` archive whose
+// data.tar.gz holds usr/share/iscan/esfw7C.bin. Everything is gzip, which
+// browsers decompress natively (DecompressionStream); no library needed.
+
+const FIRMWARE = "esfw7C.bin";
+
+async function gunzip(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+const text = (b) => new TextDecoder("latin1").decode(b).replace(/\0.*$/s, "").trim();
+
+// Files in a tar archive: [{name, data}].
+function* untar(tar) {
+  for (let pos = 0; pos + 512 <= tar.length; ) {
+    const header = tar.subarray(pos, pos + 512);
+    if (header.every((b) => b === 0)) return;
+    const name = text(header.subarray(345, 500)) + text(header.subarray(0, 100)); // ustar prefix + name
+    const size = parseInt(text(header.subarray(124, 136)) || "0", 8);
+    const type = String.fromCharCode(header[156] || 0x30);
+    pos += 512;
+    if (type === "0" || type === "\0") yield { name, data: tar.subarray(pos, pos + size) };
+    pos += Math.ceil(size / 512) * 512;
+  }
+}
+
+// Members of an `ar` archive (a .deb): [{name, data}].
+function* unar(ar) {
+  if (text(ar.subarray(0, 8)) !== "!<arch>") throw new Error("not a .deb package");
+  for (let pos = 8; pos + 60 <= ar.length; ) {
+    const name = text(ar.subarray(pos, pos + 16)).replace(/\/$/, "");
+    const size = parseInt(text(ar.subarray(pos + 48, pos + 58)), 10);
+    yield { name, data: ar.subarray(pos + 60, pos + 60 + size) };
+    pos += 60 + size + (size % 2);
+  }
+}
+
+async function fromDeb(deb) {
+  for (const m of unar(deb)) {
+    if (!m.name.startsWith("data.tar")) continue;
+    if (!m.name.endsWith(".gz")) throw new Error(`${m.name}: only gzip packages are supported`);
+    for (const f of untar(await gunzip(m.data))) if (f.name.endsWith("/" + FIRMWARE)) return f.data.slice();
+  }
+  return null;
+}
+
+// Accepts the bundle (.tar.gz), the plugin .deb, or esfw7C.bin itself.
+// Returns the firmware bytes.
+async function findFirmware(bytes) {
+  bytes = new Uint8Array(bytes);
+  if (text(bytes.subarray(0, 4)) === "EDLA") return bytes; // already the firmware
+  if (text(bytes.subarray(0, 8)) === "!<arch>") {
+    const fw = await fromDeb(bytes);
+    if (fw) return fw;
+    throw new Error("no esfw7C.bin in that package; pick the gt-x770 plugin or the whole bundle");
+  }
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    for (const f of untar(await gunzip(bytes))) {
+      if (f.name.endsWith("/" + FIRMWARE)) return f.data.slice();
+      if (/iscan-plugin-gt-x770.*\.deb$/.test(f.name)) {
+        const fw = await fromDeb(f.data);
+        if (fw) return fw;
+      }
+    }
+    throw new Error("no V500 firmware in that archive; it should be Epson's iscan-gt-x770 bundle");
+  }
+  throw new Error("pick Epson's driver bundle (.tar.gz), its plugin .deb, or esfw7C.bin");
+}
+
+return { gunzip, untar, unar, findFirmware };
+})();
+
+// ---- v500/bytes.js ----
+const __m3 = (() => {
+// Small helpers for little-endian byte blocks.
+
+function concat(parts) {
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const p of parts) {
+    out.set(p, pos);
+    pos += p.length;
+  }
+  return out;
+}
+
+function view(bytes) {
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+function u16(bytes, offset) {
+  return view(bytes).getUint16(offset, true);
+}
+
+function u32(bytes, offset) {
+  return view(bytes).getUint32(offset, true);
+}
+
+function setU16(bytes, offset, value) {
+  view(bytes).setUint16(offset, value, true);
+}
+
+function setU32(bytes, offset, value) {
+  view(bytes).setUint32(offset, value, true);
+}
+
+function hex(bytes) {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(" ");
+}
+
+function equal(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+// A two-byte command as a number: 1e 41 -> 0x1e41.
+function commandId(bytes) {
+  return (bytes[0] << 8) | bytes[1];
+}
+
+function commandBytes(id) {
+  return new Uint8Array([id >> 8, id & 0xff]);
+}
+
+return { concat, view, u16, u32, setU16, setU32, hex, equal, commandId, commandBytes };
+})();
+
+// ---- v500/firmware.js ----
+const __m2 = (() => {
+// Parse Epson's esfw7C.bin and upload it (see v500/firmware.py, PROTOCOL.md).
+// The V500 keeps no firmware in flash; the host uploads it on every power-on.
+// Users supply their own copy: Epson's licence forbids redistributing it.
+
+const { hex } = __m3;
+const ACK = 0x06;
+const STATUS = new Uint8Array([0x1b, 0x03]);
+const BEGIN_UPLOAD = new Uint8Array([0x1b, 0x06]);
+const RUN = new Uint8Array([0x1b, 0x16]);
+const RUN_PARAM = new Uint8Array([0x80]);
+const FIRMWARE_LOADED = 0x10; // bit in the first status byte
+
+function parseFirmware(buffer) {
+  const data = new Uint8Array(buffer);
+  if (String.fromCharCode(...data.subarray(0, 4)) !== "EDLA") throw new Error("not an Epson firmware file (expected esfw7C.bin)");
+  if (data.length < 0x10100) throw new Error(`file is ${data.length} bytes, expected at least ${0x10100}`);
+  const body = data.slice(0x100, 0x10100);
+  let sum = 0;
+  for (const b of body) sum = (sum + b) & 0xff;
+  const text = new TextDecoder("latin1").decode(body);
+  const m = text.match(/EPSON[ -~]{10,40}/);
+  return { uploadHeader: data.slice(0x4c, 0x50), body, checksum: sum, ident: m ? m[0].split(/\s+/).join(" ") : "unknown" };
+}
+
+async function status(io) {
+  await io.write(STATUS);
+  const reply = await io.read(2);
+  if (reply.length < 2) throw new Error(`short status reply: ${hex(reply) || "nothing"}`);
+  return reply.subarray(0, 2);
+}
+
+const isLoaded = (reply) => Boolean(reply[0] & FIRMWARE_LOADED);
+
+async function expectAck(io) {
+  const reply = await io.read(1);
+  if (!reply.length || reply[0] !== ACK) throw new Error(`expected ACK, scanner replied ${hex(reply) || "nothing"}`);
+}
+
+// Upload unless the scanner already runs firmware. Returns true if it uploaded.
+async function upload(fw, io) {
+  if (isLoaded(await status(io))) return false;
+  await io.write(BEGIN_UPLOAD);
+  await expectAck(io);
+  await io.write(fw.uploadHeader);
+  await io.write(fw.body);
+  await io.write(new Uint8Array([fw.checksum]));
+  await expectAck(io);
+  await io.write(RUN);
+  await expectAck(io);
+  await io.write(RUN_PARAM);
+  await expectAck(io);
+  if (!isLoaded(await status(io))) throw new Error("upload ACKed but the firmware isn't running");
+  return true;
+}
+
+return { FIRMWARE_LOADED, parseFirmware, status, isLoaded, upload };
+})();
+
+// ---- v500/raw.js ----
+const __m5 = (() => {
+// Turn the V500's raw image data into RGB (see v500/raw.py and PROTOCOL.md).
+//
+// Data comes in blocks, each followed by an 8-byte trailer holding its length.
+// The rest is lines of 8-bit interleaved RGB (grey scans too). Red lags green
+// by k lines and green lags blue by k, k = 5 x dpi / 200. Crop the leftmost
+// `width` pixels, then apply Epson's colour matrix, or the grey weights.
+
+const { concat } = __m3;
+const TRAILER = 8; // 02 <u24 LE block length> 00 00 80 00
+
+// From Epson's libsane-epkowa; out = M @ (r, g, b), truncated to 0..255.
+const COLOR_MATRIX = [
+  [1.247, -0.2041, -0.0429],
+  [-0.192, 1.2918, -0.0998],
+  [-0.01, -0.2503, 1.2603],
+];
+const GREY_WEIGHTS = [0.195, 0.61, 0.195];
+
+function lineShift(dpi) {
+  const k = Math.floor((5 * dpi) / 200);
+  return [2 * k, k, 0];
+}
+
+// Split the reads after one `1e 47` into data blocks, walking trailers from the end.
+function blocks(reads) {
+  const data = concat(reads);
+  const out = [];
+  let end = data.length;
+  while (end > 0) {
+    const t = data.subarray(end - TRAILER, end);
+    if (t.length < TRAILER || t[0] !== 0x02) throw new Error(`no block trailer before byte ${end}`);
+    const length = t[1] | (t[2] << 8) | (t[3] << 16);
+    const start = end - TRAILER - length;
+    if (start < 0) throw new Error(`trailer claims ${length} bytes, only ${end - TRAILER} left`);
+    out.push(data.subarray(start, end - TRAILER));
+    end = start;
+  }
+  return out.reverse();
+}
+
+function payload(reads) {
+  return concat(blocks(reads));
+}
+
+// The same in exact integers (x 10,000 and x 1,000), as raw.py does, so values
+// that land exactly on an integer truncate the same everywhere.
+const M = COLOR_MATRIX.map((row) => row.map((v) => Math.round(v * 10000)));
+const G = GREY_WEIGHTS.map((v) => Math.round(v * 1000));
+
+// One output pixel from the raw samples r, g, b.
+function convert(r, g, b, grey, out, o) {
+  if (grey) {
+    const v = Math.floor((r * G[0] + g * G[1] + b * G[2]) / 1000);
+    out[o] = v < 0 ? 0 : v > 255 ? 255 : v;
+    return;
+  }
+  for (let c = 0; c < 3; c++) {
+    const m = M[c];
+    const v = Math.floor((r * m[0] + g * m[1] + b * m[2]) / 10000);
+    out[o + c] = v < 0 ? 0 : v > 255 ? 255 : v;
+  }
+}
+
+// Decodes rows as raw lines arrive, so a page can paint the scan as it happens.
+// push(bytes) takes raw line data (trailers removed) and returns
+// {top, rows, data}: the newly finished rows, `channels` bytes per pixel.
+class StreamDecoder {
+  constructor({ rawWidth, width, height, dpi, grey = false, cropX = 0 }) {
+    this.rawWidth = rawWidth;
+    this.width = width;
+    this.height = height;
+    this.grey = grey;
+    this.cropX = cropX;
+    this.channels = grey ? 1 : 3;
+    this.shift = lineShift(dpi);
+    this.lineBytes = rawWidth * 3;
+    this.lines = height + Math.max(...this.shift);
+    this.buffer = new Uint8Array(this.lines * this.lineBytes);
+    this.filled = 0; // bytes received
+    this.done = 0; // output rows produced
+  }
+
+  push(bytes) {
+    if (this.filled + bytes.length > this.buffer.length) throw new Error("more image data than expected");
+    this.buffer.set(bytes, this.filled);
+    this.filled += bytes.length;
+    const complete = Math.floor(this.filled / this.lineBytes);
+    // row y needs raw lines y + shift[c] for each colour
+    const ready = Math.min(this.height, complete - Math.max(...this.shift));
+    const top = this.done;
+    if (ready <= top) return { top, rows: 0, data: new Uint8Array(0) };
+    const rows = ready - top;
+    const out = new Uint8Array(rows * this.width * this.channels);
+    const [sr, sg, sb] = this.shift;
+    const lb = this.lineBytes;
+    const buf = this.buffer;
+    for (let y = 0; y < rows; y++) {
+      const ry = (top + y + sr) * lb, gy = (top + y + sg) * lb, by = (top + y + sb) * lb;
+      for (let x = 0; x < this.width; x++) {
+        const px = (this.cropX + x) * 3;
+        convert(buf[ry + px], buf[gy + px + 1], buf[by + px + 2], this.grey, out, (y * this.width + x) * this.channels);
+      }
+    }
+    this.done = ready;
+    return { top, rows, data: out };
+  }
+
+  get complete() {
+    return this.done === this.height;
+  }
+}
+
+// Whole-image decode: raw payload -> {width, height, channels, data}.
+function decode(data, width, height, { dpi = 200, grey = false, cropX = 0 } = {}) {
+  const lines = height + Math.max(...lineShift(dpi));
+  if (data.length % (lines * 3)) throw new Error(`${data.length} bytes don't split into ${lines} RGB lines`);
+  const rawWidth = data.length / (lines * 3);
+  if (rawWidth < cropX + width) throw new Error(`raw lines are ${rawWidth} px, narrower than ${cropX + width}`);
+  const dec = new StreamDecoder({ rawWidth, width, height, dpi, grey, cropX });
+  const { data: out } = dec.push(data);
+  return { width, height, channels: dec.channels, data: out };
+}
+
+return { TRAILER, COLOR_MATRIX, GREY_WEIGHTS, lineShift, blocks, payload, StreamDecoder, decode };
+})();
+
+// ---- v500/calibration.js ----
+const __m7 = (() => {
+// Calibration values for a scan, from the scanner's reference reads
+// (see v500/calibration.py and PROTOCOL.md, "Calibration").
+//
+// White (32 lines) and dark (16 lines, lamp off) are read as 16-bit RGB across
+// the sensor window. From them: a packed shading table (`1e 84` type 06), the
+// per-colour minimums (`1e 42`) and bytes 11 and 15 of the image pass's `1e 41`,
+// which tell the scanner how the table is packed. Method from Epson's plugin.
+
+const DARK_SMOOTHING = 51; // moving-average width that best matches Epson's dark line (fitted)
+
+// A 16-bit read as a Uint16Array, copying so alignment is right.
+function u16Samples(bytes) {
+  const copy = bytes.slice();
+  return new Uint16Array(copy.buffer, 0, copy.length >> 1);
+}
+
+// Mean per colour of the dark probe (16 px x 4 lines), rounded.
+function probeOffsets(probe) {
+  const sums = [0, 0, 0];
+  for (let i = 0; i < probe.length; i++) sums[i % 3] += probe[i];
+  const n = probe.length / 3;
+  return sums.map((s) => roundHalfEven(s / n));
+}
+
+function roundHalfEven(x) {
+  const f = Math.floor(x);
+  const d = x - f;
+  if (d > 0.5) return f + 1;
+  if (d < 0.5) return f;
+  return f % 2 === 0 ? f : f + 1;
+}
+
+// The `1e 42` block: 3 white values, then each dark value twice.
+function param1e42(white, dark) {
+  const out = new Uint8Array(18);
+  const dv = new DataView(out.buffer);
+  const values = [white[0], white[1], white[2], dark[0], dark[0], dark[1], dark[1], dark[2], dark[2]];
+  values.forEach((v, i) => dv.setUint16(i * 2, v, true));
+  return out;
+}
+
+// Centred moving average along the line, narrower at the ends (one colour).
+function smooth(line, width) {
+  const n = line.length;
+  const r = Math.floor(width / 2);
+  const sums = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) sums[i + 1] = sums[i] + line[i];
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const lo = Math.max(0, i - r), hi = Math.min(n, i + r + 1);
+    out[i] = (sums[hi] - sums[lo]) / (hi - lo);
+  }
+  return out;
+}
+
+// white: Uint16Array of 32 lines x window x 3; dark: 16 lines x window x 3.
+// used: Uint8Array(window), 1 for the sensor pixels the scan needs.
+function compute(white, dark, window, used) {
+  const W = window;
+  const idx = [];
+  for (let x = 0; x < W; x++) if (used[x]) idx.push(x);
+  const n = idx.length;
+  const w = [new Float64Array(n), new Float64Array(n), new Float64Array(n)];
+  const d = [new Float64Array(n), new Float64Array(n), new Float64Array(n)];
+
+  for (let c = 0; c < 3; c++) {
+    // white: 4 groups of 8 lines averaged, then the brightest of the 4
+    idx.forEach((x, j) => {
+      let best = -Infinity;
+      for (let g = 0; g < 4; g++) {
+        let s = 0;
+        for (let l = 0; l < 8; l++) s += white[((g * 8 + l) * W + x) * 3 + c];
+        best = Math.max(best, s / 8);
+      }
+      w[c][j] = Math.floor(best);
+    });
+    // dark: 16 lines averaged, smoothed across the whole window
+    const darkLine = new Float64Array(W);
+    const lines = dark.length / (W * 3);
+    for (let x = 0; x < W; x++) {
+      let s = 0;
+      for (let l = 0; l < lines; l++) s += dark[(l * W + x) * 3 + c];
+      darkLine[x] = s / lines;
+    }
+    const sm = smooth(darkLine, DARK_SMOOTHING);
+    idx.forEach((x, j) => (d[c][j] = Math.floor(sm[x])));
+  }
+
+  const minOf = (a) => a.reduce((m, v) => Math.min(m, v), Infinity);
+  const rangeOf = (arrs, mins) => Math.max(...arrs.map((a, c) => a.reduce((m, v) => Math.max(m, v - mins[c]), 0)));
+  const whiteMin = w.map(minOf);
+  const darkMin = d.map(minOf);
+
+  const darkRange = rangeOf(d, darkMin);
+  let k = 0, dshift = 0;
+  const steps = [[3, 0x1f], [2, 0x3f], [1, 0x7f], [0, 0xff]];
+  const found = steps.find(([, limit]) => darkRange <= limit);
+  if (found) k = found[0];
+  else while (darkRange >= 0x100 * 2 ** dshift) dshift++;
+  const whiteRange = rangeOf(w, whiteMin);
+  let h = 0;
+  while (whiteRange >= 2 ** (k + 8) * 2 ** h && h < 8) h++;
+
+  const table = new Uint16Array(W * 3);
+  idx.forEach((x, j) => {
+    for (let c = 0; c < 3; c++) {
+      const v = (((w[c][j] - whiteMin[c]) >> h) << (8 - k)) | ((d[c][j] - darkMin[c]) >> dshift);
+      table[x * 3 + c] = Math.min(65535, Math.max(0, v));
+    }
+  });
+  return {
+    whiteMin,
+    darkMin,
+    table,
+    k,
+    h,
+    d: dshift,
+    param1e42: () => param1e42(whiteMin, darkMin),
+    tableBytes: () => new Uint8Array(table.buffer.slice(0)),
+    windowBytes: () => [0x80 | k, (h << 4) | dshift],
+  };
+}
+
+return { DARK_SMOOTHING, u16Samples, probeOffsets, param1e42, compute };
+})();
+
+// ---- v500/usblog.js ----
+const __m8 = (() => {
+// Read the transfer logs that tools/capture/usblog.c writes (see v500/usblog.py).
+//
+// File: "V5USBLOG", then records of
+//   double t; u8 endpoint; u8 kind; i32 rc; u32 requested; u32 actual;
+//   u8 data[IN ? actual : requested]
+
+const MAGIC = "V5USBLOG";
+const RECORD = 22;
+
+function parseUsblog(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const magic = String.fromCharCode(...bytes.subarray(0, 8));
+  if (magic !== MAGIC) throw new Error("not a usblog file (expected a capture from tools/capture)");
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const records = [];
+  let pos = 8;
+  while (pos + RECORD <= bytes.length) {
+    const time = dv.getFloat64(pos, true);
+    const endpoint = dv.getUint8(pos + 8);
+    const rc = dv.getInt32(pos + 10, true);
+    const requested = dv.getUint32(pos + 14, true);
+    const actual = dv.getUint32(pos + 18, true);
+    pos += RECORD;
+    const size = endpoint & 0x80 ? actual : requested;
+    records.push({ time, endpoint, rc, requested, out: !(endpoint & 0x80), data: bytes.slice(pos, pos + size) });
+    pos += size;
+  }
+  return records;
+}
+
+return { parseUsblog };
+})();
+
+// ---- v500/replay.js ----
+const __m6 = (() => {
+// Scan without Epson's plugin, by replaying a template (see v500/replay.py).
+//
+// A template is a capture of Epson's driver making one scan. We send the same
+// commands in the same order, with the calibration computed live: the analog
+// levels (`1e 31` <- `1e 92`), the probe offsets (second `1e 42`), the white
+// and dark minimums (last `1e 42`), the shading table (`1e 84` type 06) and
+// how it is packed (image-pass `1e 41` bytes 11 and 15). Status polls are
+// polled properly instead of replayed.
+
+const { commandBytes, commandId, concat, hex, u16, u32 } = __m3;
+const calibration = __m7;
+const { lineShift, payload, StreamDecoder, TRAILER } = __m5;
+const { parseUsblog } = __m8;
+const POLL_READY = 0x1e04;
+const STATUS = 0x1b03;
+const BUSY = 0x40;
+const CMD = { MOVE: 0x1e01, AFE: 0x1e31, LEVELS: 0x1e42, WINDOW: 0x1e41, READ: 0x1e47, PARAMS: 0x1e57, AFE_READ: 0x1e92, TABLE: 0x1e84 };
+const ACK = 0x06;
+
+function isCommand(rec) {
+  return rec.out && rec.data.length === 2 && (rec.data[0] === 0x1b || rec.data[0] === 0x1e);
+}
+
+// Commands with everything sent or read until the next command.
+function group(records) {
+  const groups = [];
+  for (const rec of records) {
+    if (isCommand(rec)) groups.push({ command: commandId(rec.data), steps: [] });
+    else if (groups.length) groups[groups.length - 1].steps.push({ out: rec.out, requested: rec.requested, data: rec.data });
+  }
+  return groups;
+}
+
+const params = (g) => g.steps.filter((s) => s.out).map((s) => s.data);
+const replies = (g) => g.steps.filter((s) => !s.out).map((s) => s.data);
+const dataReads = (g) => replies(g).filter((r) => !(r.length === 1 && r[0] === ACK));
+
+class Template {
+  constructor(fields) {
+    Object.assign(this, { cropX: 0 }, fields);
+  }
+
+  static fromUsblog(buffer, name = "template") {
+    const groups = group(parseUsblog(buffer));
+    const p57 = groups.find((g) => g.command === CMD.PARAMS);
+    if (!p57) throw new Error(`${name}: no scan parameters (1e 57); is this a scan capture?`);
+    const p = params(p57)[0];
+    const [xres, yres, , , width, height, mode] = [0, 4, 8, 12, 16, 20, 24].map((o) => u32(p, o));
+    const windows = [];
+    let window = null, table = null;
+    for (const g of groups) {
+      if (g.command === CMD.WINDOW) window = u16(params(g)[0], 2) - u16(params(g)[0], 0);
+      if (g.command === CMD.READ) windows.push(window);
+      if (g.command === CMD.TABLE && params(g)[0][0] === 6) table = params(g)[1];
+    }
+    const reads = groups.filter((g) => g.command === CMD.READ).length;
+    if (reads !== 4 || !table) throw new Error(`${name}: expected 4 data reads and a shading table, found ${reads}`);
+    // pixels Epson's shading table filled
+    const t16 = calibration.u16Samples(table);
+    const used = new Uint8Array(t16.length / 3);
+    for (let x = 0; x < used.length; x++) used[x] = Math.min(t16[x * 3], t16[x * 3 + 1], t16[x * 3 + 2]) > 0 ? 1 : 0;
+    return new Template({ name, groups, xres, yres, width, height, mode, grey: mode === 0x800, deep: Boolean(mode & 0x1000), windows, used });
+  }
+
+  // Raw line width of the image pass, from the recorded data.
+  rawWidth() {
+    const reads = this.groups.filter((g) => g.command === CMD.READ);
+    const lines = this.height + Math.max(...lineShift(this.yres));
+    return payload(dataReads(reads[reads.length - 1])).length / (lines * 3);
+  }
+}
+
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+
+class Replayer {
+  // io: {write(Uint8Array), read(size) -> Uint8Array}, both async.
+  // onRows({top, rows, data, width, channels}) is called as image rows decode.
+  constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {}, pollTimeoutMs = 60000 } = {}) {
+    this.t = template;
+    this.io = io;
+    this.sleep = sleep;
+    this.log = log;
+    this.onRows = onRows;
+    this.onProgress = onProgress;
+    this.pollTimeoutMs = pollTimeoutMs;
+    this.reads = [];
+    this.afe = null;
+    this.probeOff = null;
+    this.cal = null;
+    this.count = new Map();
+    this.imageWindow = template.groups.filter((g) => g.command === CMD.WINDOW).length - 1;
+    this.totalReads = template.groups.filter((g) => g.command === CMD.READ).length;
+  }
+
+  async run() {
+    const groups = this.t.groups;
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      if (g.command === POLL_READY || g.command === STATUS) {
+        while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
+        if (g.command === POLL_READY) await this.pollReady();
+        else await this.waitNotBusy();
+      } else {
+        await this.replay(g);
+      }
+      this.onProgress(i + 1, groups.length);
+    }
+    return this.image;
+  }
+
+  async replay(g) {
+    const n = this.count.get(g.command) ?? 0;
+    this.count.set(g.command, n + 1);
+    const isImage = g.command === CMD.READ && this.reads.length === this.totalReads - 1;
+    if (isImage) this.startImage();
+    await this.io.write(commandBytes(g.command));
+    const sent = this.substitute(g, n);
+    let p = 0;
+    const got = [];
+    for (const step of g.steps) {
+      if (step.out) {
+        await this.io.write(sent[p++]);
+        continue;
+      }
+      const reply = await this.io.read(step.requested);
+      if (reply.length !== step.requested) throw new Error(`${hex(commandBytes(g.command))}: read ${reply.length} of ${step.requested} bytes`);
+      if (step.data.length === 1 && step.data[0] === ACK && !(reply.length === 1 && reply[0] === ACK)) {
+        throw new Error(`${hex(commandBytes(g.command))}: scanner replied ${hex(reply)}, expected ACK`);
+      }
+      got.push(reply);
+      if (isImage) this.imageBlock(reply);
+    }
+    this.after(g, n, got);
+  }
+
+  substitute(g, n) {
+    const ps = params(g).map((x) => x.slice());
+    if (g.command === CMD.AFE && n > 0) ps[0] = this.need(this.afe, "1e 92 reply");
+    else if (g.command === CMD.LEVELS && n === 1) {
+      const o = this.need(this.probeOff, "probe read");
+      ps[0] = calibration.param1e42([0, 0, 0], o);
+    } else if (g.command === CMD.LEVELS && n === 3) ps[0] = this.calibrate().param1e42();
+    else if (g.command === CMD.TABLE && ps.length && ps[0][0] === 6) ps[1] = this.calibrate().tableBytes();
+    else if (g.command === CMD.WINDOW && n === this.imageWindow) {
+      const [b11, b15] = this.calibrate().windowBytes();
+      ps[0][11] = b11;
+      ps[0][15] = b15;
+    }
+    return ps;
+  }
+
+  after(g, n, got) {
+    if (g.command === CMD.AFE_READ) this.afe = got[0];
+    else if (g.command === CMD.READ) {
+      const data = got.filter((r) => !(r.length === 1 && r[0] === ACK));
+      this.reads.push(data);
+      const k = this.reads.length - 1;
+      this.log(`read ${k}: ${data.reduce((s, r) => s + r.length, 0)} bytes`);
+      if (k === 0) this.probeOff = calibration.probeOffsets(calibration.u16Samples(payload(data)));
+    }
+  }
+
+  // The image arrives one block per read; decode rows as soon as they're complete.
+  startImage() {
+    const t = this.t;
+    const rawWidth = t.imageRawWidth ?? t.rawWidth(); // set by retarget(); else from the recording
+    this.decoder = new StreamDecoder({ rawWidth, width: t.width, height: t.height, dpi: t.yres, grey: t.grey, cropX: t.cropX });
+    this.image = { width: t.width, height: t.height, channels: this.decoder.channels, data: new Uint8Array(t.width * t.height * this.decoder.channels) };
+    this.pendingImage = [];
+  }
+
+  imageBlock(reply) {
+    // Each image read is one block plus its trailer; tolerate split blocks by
+    // buffering until a trailer's length lines up.
+    this.pendingImage.push(reply);
+    const joined = this.pendingImage.length === 1 ? reply : concat(this.pendingImage);
+    const t = joined.subarray(joined.length - TRAILER);
+    const length = t[1] | (t[2] << 8) | (t[3] << 16);
+    if (t[0] !== 0x02 || length !== joined.length - TRAILER) return;
+    this.pendingImage = [];
+    const { top, rows, data } = this.decoder.push(joined.subarray(0, length));
+    if (!rows) return;
+    const ch = this.decoder.channels;
+    this.image.data.set(data, top * this.t.width * ch);
+    this.onRows({ top, rows, data, width: this.t.width, channels: ch });
+  }
+
+  calibrate() {
+    if (!this.cal) {
+      if (this.reads.length < 3) throw new Error("calibration needed before the reference reads");
+      const w = this.t.windows;
+      const white = calibration.u16Samples(payload(this.reads[1]));
+      const dark = calibration.u16Samples(payload(this.reads[2]));
+      if (w[1] !== w[2]) throw new Error("white and dark reads have different windows");
+      this.cal = calibration.compute(white, dark, w[1], this.t.used);
+      const c = this.cal;
+      this.log(`calibration: white ${c.whiteMin} dark ${c.darkMin} k ${c.k} h ${c.h} d ${c.d}`);
+    }
+    return this.cal;
+  }
+
+  async pollReady() {
+    const deadline = Date.now() + this.pollTimeoutMs;
+    for (;;) {
+      await this.io.write(commandBytes(POLL_READY));
+      const r = await this.io.read(1);
+      if (r[0] === 0x01) return;
+      if (Date.now() > deadline) throw new Error("scanner never reported ready (1e 04)");
+      await this.sleep(100);
+    }
+  }
+
+  async waitNotBusy() {
+    const deadline = Date.now() + this.pollTimeoutMs;
+    for (;;) {
+      await this.io.write(commandBytes(STATUS));
+      const r = await this.io.read(2);
+      if (!(r[0] & BUSY)) return;
+      if (Date.now() > deadline) throw new Error(`scanner stayed busy (status ${hex(r)})`);
+      await this.sleep(100);
+    }
+  }
+
+  need(value, what) {
+    if (value == null) throw new Error(`template order unexpected: no ${what} yet`);
+    return value;
+  }
+}
+
+return { POLL_READY, STATUS, BUSY, CMD, group, params, replies, Template, Replayer };
+})();
+
+// ---- v500/geometry.js ----
+const __m4 = (() => {
+// Retarget a template to any scan area at its resolution (see v500/geometry.py
+// and PROTOCOL.md, "Scan geometry").
+
+const { setU16, setU32, u16, u32 } = __m3;
+const { lineShift } = __m5;
+const { CMD, params, Template } = __m6;
+const STEPS_PER_INCH = 2400;
+const BLOCK_BYTES = 51200; // Epson reads in chunks of this size; image blocks fit in it
+const RAW_QUANTUM = 384; // raw line widths when the sensor runs faster than the scan
+const LINE_QUANTUM = 32; // otherwise: every width Epson sent at 800 dpi is a multiple of 32; 1,889 px hung the scanner
+const USED_MARGIN = 3; // extra sensor pixels Epson's shading table covers
+const BED_IN = 8.48; // the scanner's maximum width
+const BED_MM = 297.18; // and the driver's maximum height
+const SENSOR_SPAN_IN = 9.6; // widest window Epson used: 5,120 units at 200 dpi
+
+// A scan area in pixels at the scan resolution.
+function region(x, y, width, height) {
+  return { x, y, width, height };
+}
+
+// mm -> px through SANE's fixed point (1/65536 mm), as Epson's driver gets
+// them. Epson rounds the offsets, truncates the height and the width to a
+// multiple of 8 (60 mm at 800 dpi: 1,888 px, not 1,889).
+function fromMm(dpi, left, top, width, height) {
+  const exact = (v) => (Math.floor(v * 65536) / 65536 / 25.4) * dpi;
+  return region(Math.floor(exact(left) + 0.5), Math.floor(exact(top) + 0.5),
+    Math.floor(Math.floor(exact(width)) / 8) * 8, Math.floor(exact(height)));
+}
+
+function fullBed(dpi) {
+  return region(0, 0, Math.floor(BED_IN * dpi + 1e-6), fromMm(dpi, 0, 0, 0, BED_MM).height);
+}
+
+const firstIndex = (groups, cmd) => groups.findIndex((g) => g.command === cmd);
+const lastIndex = (groups, cmd) => groups.findLastIndex((g) => g.command === cmd);
+
+// Replace the parameter blocks a group sends.
+function withParams(g, blocks) {
+  let i = 0;
+  return { command: g.command, steps: g.steps.map((s) => (s.out ? { ...s, data: blocks[i], requested: blocks[i++].length } : s)) };
+}
+
+function readGroup(sizes) {
+  return { command: CMD.READ, steps: sizes.map((s) => ({ out: false, requested: s, data: new Uint8Array(0) })) };
+}
+
+function chunks(total) {
+  const out = Array(Math.floor(total / BLOCK_BYTES)).fill(BLOCK_BYTES);
+  if (total % BLOCK_BYTES) out.push(total % BLOCK_BYTES);
+  return out;
+}
+
+function retarget(t, area) {
+  const dpi = t.yres;
+  if (t.xres !== dpi) throw new Error("templates with different x and y resolutions aren't supported");
+  const full = fullBed(dpi);
+  if (area.width <= 0 || area.height <= 0 || area.x < 0 || area.y < 0 ||
+      area.x + area.width > full.width || area.y + area.height > full.height) {
+    throw new Error(`area ${JSON.stringify(area)} is outside the bed (${full.width} x ${full.height} px at ${dpi} dpi)`);
+  }
+
+  const groups = t.groups;
+  const iParams = firstIndex(groups, CMD.PARAMS);
+  const p57t = params(groups[iParams])[0];
+  const imageWindow = lastIndex(groups, CMD.WINDOW);
+  const w41 = params(groups[imageWindow])[0];
+  const startT = u16(w41, 0), endT = u16(w41, 2);
+  const windowT = endT - startT;
+  const tx = u32(p57t, 8), ty = u32(p57t, 12);
+  const extra = Math.max(...lineShift(dpi));
+  const linesT = t.height + extra;
+  const rawWT = t.imageRawWidth ?? t.rawWidth();
+  const ratio = windowT / rawWT;
+  const origin = startT - Math.round(tx * ratio);
+
+  const quantum = ratio === 1 ? LINE_QUANTUM : RAW_QUANTUM;
+  const rawW = Math.ceil(area.width / quantum) * quantum; // the host crops the padding
+  const window = Math.round(rawW * ratio);
+  let start = origin + Math.round(area.x * ratio);
+  let cropX = 0;
+  const limit = origin + Math.round(SENSOR_SPAN_IN * dpi * ratio);
+  if (start + window > limit) { // near the right edge: start earlier, crop on the host
+    const shift = Math.ceil((start + window - limit) / ratio);
+    start -= Math.round(shift * ratio);
+    cropX = shift;
+  }
+  const usedPx = Math.min(window, Math.ceil((cropX + area.width) * ratio) + (ratio !== 1 ? USED_MARGIN : 0));
+  const lines = area.height + extra;
+  const perBlock = Math.min(255, Math.floor(BLOCK_BYTES / (rawW * 3)));
+  if (perBlock < 1) throw new Error(`a ${rawW} px line doesn't fit in one block`);
+
+  const spl = STEPS_PER_INCH / dpi;
+  const moves = groups.map((g, i) => (g.command === CMD.MOVE ? i : -1)).filter((i) => i >= 0);
+  if (moves.length < 2) throw new Error("template has no move to the scan area");
+  const [toTop, scanMove] = moves.slice(-2);
+  const ramp = lastIndex(groups.slice(0, toTop), CMD.TABLE);
+
+  const out = groups.slice();
+
+  const p57 = p57t.slice();
+  [area.x, area.y, area.width, area.height].forEach((v, i) => setU32(p57, 8 + i * 4, v));
+  const channels = t.grey ? 1 : 3 * (p57[25] & 0x10 ? 2 : 1); // mode 0x1013: 16-bit
+  p57[28] = Math.min(254, Math.floor(Math.floor(65536 / (area.width * channels)) / 2) * 2);
+  out[iParams] = withParams(groups[iParams], [p57]);
+
+  groups.forEach((g, i) => {
+    if (g.command === CMD.WINDOW) {
+      const p = params(g)[0];
+      if (u16(p, 0) !== startT || u16(p, 2) !== endT) return; // the probe's own window
+      const q = p.slice();
+      setU16(q, 0, start);
+      setU16(q, 2, start + window);
+      if (i === imageWindow) {
+        setU16(q, 4, lines);
+        q[18] = perBlock;
+      }
+      out[i] = withParams(g, [q]);
+    } else if (g.command === CMD.TABLE && params(g)[0][0] === 6) {
+      const header = params(g)[0].slice();
+      const len = window * 6;
+      header[5] = len & 0xff;
+      header[6] = (len >> 8) & 0xff;
+      header[7] = (len >> 16) & 0xff;
+      out[i] = withParams(g, [header, new Uint8Array(len)]);
+    }
+  });
+
+  const reads = groups.map((g, i) => (g.command === CMD.READ ? i : -1)).filter((i) => i >= 0);
+  reads.forEach((i, n) => {
+    if (n === 0) return; // the probe read is fixed-size
+    if (n < reads.length - 1) {
+      const refLines = u16(params(out[lastIndex(out.slice(0, i), CMD.WINDOW)])[0], 4);
+      out[i] = readGroup(chunks(refLines * window * 6 + 8));
+    } else {
+      const line = rawW * 3;
+      const sizes = Array(Math.floor(lines / perBlock)).fill(perBlock * line + 8);
+      if (lines % perBlock) sizes.push((lines % perBlock) * line + 8);
+      out[i] = readGroup(sizes);
+    }
+  });
+
+  // the move to the top of the area: same total distance plus the y change
+  let m = params(groups[toTop])[0];
+  const stepsT = u32(m, 0), rampT = u16(m, 6) + 1;
+  const distance = stepsT + 2 * rampT + (area.y - ty) * spl;
+  let n = params(groups[ramp])[1].length / 2;
+  while (n > 1 && distance - 2 * n < 0) n = Math.floor(n / 2);
+  if (distance - 2 * n < 0) throw new Error(`can't reach line ${area.y}: move of ${distance} steps`);
+  let q = m.slice();
+  setU32(q, 0, distance - 2 * n);
+  setU16(q, 6, n - 1);
+  setU16(q, 8, n - 1);
+  out[toTop] = withParams(groups[toTop], [q]);
+
+  // the scan move
+  m = params(groups[scanMove])[0];
+  const tail = u16(m, 4);
+  if (u32(m, 0) !== linesT * spl + tail) throw new Error("template's scan move doesn't match its line count");
+  q = m.slice();
+  setU32(q, 0, lines * spl + tail);
+  out[scanMove] = withParams(groups[scanMove], [q]);
+
+  const used = new Uint8Array(window);
+  used.fill(1, 0, usedPx);
+  const windows = [t.windows[0], ...t.windows.slice(1).map(() => window)];
+  return new Template({ ...t, groups: out, width: area.width, height: area.height, windows, used, cropX, imageRawWidth: rawW });
+}
+
+return { STEPS_PER_INCH, BLOCK_BYTES, RAW_QUANTUM, LINE_QUANTUM, USED_MARGIN, BED_IN, BED_MM, SENSOR_SPAN_IN, region, fromMm, fullBed, retarget };
+})();
+
+// ---- v500/protocol.js ----
+const __m9 = (() => {
+// The whole command sequence for a scan, built from scratch: no capture of
+// Epson's driver needed. (See PROTOCOL.md, "Building a scan without a template".)
+//
+// It is the sequence Epson's driver sends, with every table computed:
+// - gamma (`1e 84` type 02): floor(65535 x (x / 4095)^(1/1.8)) >> 4, exact;
+// - motor ramps (type 05): an interval going from `start` to `cruise` over
+//   n steps as start / sqrt(1 + a i), a = ((start / cruise)^2 - 1) / (n - 1),
+//   within 4 timer ticks of Epson's;
+// - and a few per-resolution constants measured from captures.
+// The area is then set by retarget() (geometry.js), the same code that
+// retargets captured templates.
+
+const { setU16, setU32 } = __m3;
+const { retarget } = __m4;
+const { lineShift } = __m5;
+const { CMD, POLL_READY, STATUS, Template } = __m6;
+const ACK = new Uint8Array([0x06]);
+
+// Per-resolution constants, from captures of Epson's driver at each resolution.
+const RESOLUTIONS = {
+  200: { timing: 0x0f00, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, slowSpeed: 160,
+         scanRamp: { start: 2500, cruise: 320, n: 512 }, scanRampUsed: 512, scanTail: 120, scanFlags: 0,
+         ratio: 8 / 3, origin: 143, toTop: 706 },
+  400: { timing: 0x0cc0, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, slowSpeed: 136,
+         scanRamp: { start: 1249, cruise: 272, n: 512 }, scanRampUsed: 256, scanTail: 126, scanFlags: 2,
+         ratio: 4 / 3, origin: 143, toTop: 956 },
+  800: { timing: 0x1500, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, slowSpeed: 224,
+         scanSpeed: 112, scanRampUsed: 0, scanTail: 126, scanFlags: 8,
+         ratio: 1, origin: 213, toTop: 1212 },
+};
+const MOVE_RAMP = { start: 2500, cruise: 160, n: 512 }; // the move to the top of the area
+const SETTLE = new Uint8Array([0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]); // 1e 43
+const SETTLE_SCAN = new Uint8Array([0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]);
+// `1e 84` type 07: unknown purpose, constant in every capture. u16 pairs, then 0xff.
+const TYPE07 = [0, 0, 40, 0x31c0, 200, 0x31c0, 400, 0x1000];
+
+function gammaTable(gamma = 1.8) {
+  const out = new Uint16Array(4096);
+  for (let x = 0; x < 4096; x++) out[x] = Math.floor(65535 * (x / 4095) ** (1 / gamma)) >> 4;
+  return out;
+}
+
+function ramp({ start, cruise, n }) {
+  const a = ((start / cruise) ** 2 - 1) / (n - 1);
+  const out = new Uint16Array(n);
+  for (let i = 0; i < n; i++) out[i] = Math.max(cruise, Math.floor(start / Math.sqrt(1 + a * i)));
+  return out;
+}
+
+// ---- building blocks ----
+
+const u8 = (arr) => new Uint8Array(arr);
+const bytesOf = (typed) => new Uint8Array(typed.buffer, typed.byteOffset, typed.byteLength).slice();
+const step = (out, data, requested = data.length) => ({ out, requested, data });
+const ack = () => step(false, ACK, 1);
+
+function block(length, fields = []) {
+  const b = new Uint8Array(length);
+  for (const [offset, size, value] of fields) {
+    if (size === 1) b[offset] = value;
+    else if (size === 2) setU16(b, offset, value);
+    else setU32(b, offset, value);
+  }
+  return b;
+}
+
+function tableHeader(prefix, length) {
+  return u8([...prefix, length & 0xff, (length >> 8) & 0xff, (length >> 16) & 0xff]);
+}
+
+class Builder {
+  constructor() {
+    this.groups = [];
+  }
+  cmd(id, ...steps) {
+    this.groups.push({ command: id, steps });
+    return this;
+  }
+  query(id, size) {
+    return this.cmd(id, step(false, new Uint8Array(0), size));
+  }
+  status() {
+    return this.query(STATUS, 2);
+  }
+  set(id, data) {
+    return this.cmd(id, ack(), step(true, data), ack());
+  }
+  table(prefix, data) {
+    return this.cmd(CMD.TABLE, ack(), step(true, tableHeader(prefix, data.length)), step(true, data), ack());
+  }
+  read(sizes) {
+    return this.cmd(CMD.READ, ...sizes.map((s) => step(false, new Uint8Array(0), s)));
+  }
+}
+
+// ---- the sequence ----
+
+// A base template for `dpi`: a one-line, 384 px scan at the top left. Use
+// build() for a real area.
+function base(dpi, { grey = false, gamma = 1.8 } = {}) {
+  const r = RESOLUTIONS[dpi];
+  if (!r) throw new Error(`no settings for ${dpi} dpi yet; have ${Object.keys(RESOLUTIONS).join(", ")}`);
+  const div = 2400 / dpi;
+  const width = 384, height = 1, extra = Math.max(...lineShift(dpi));
+  const lines = height + extra;
+  const window = Math.round(width * r.ratio);
+  const start = r.origin, end = start + window;
+  const perBlock = Math.min(255, Math.floor(51200 / (width * 3)));
+  const b = new Builder();
+
+  // open the session the way Epson's frontend does: status, parameters,
+  // identity, and twice a reset (1b 40)
+  const opening = { 0x1b03: 2, 0x1e53: 42, 0x1e65: 1, 0x1b13: 28 };
+  for (const id of [0x1b03, 0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1b40,
+    0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1b40, 0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1e65, 0x1b13]) {
+    if (id === 0x1b40) b.cmd(id, ack());
+    else b.query(id, opening[id]);
+  }
+
+  // identity lookup tables, one per colour
+  const identity = u8(Array.from({ length: 256 }, (_, i) => i));
+  for (const addr of [0xfc, 0xfd, 0xfe]) b.table([0x03, 0x00, addr, 0x1f, 0x02], identity);
+  b.status().query(0x1e65, 1).query(0x1b13, 28).query(0x1e53, 42);
+
+  // scan parameters
+  const mode = grey ? 0x800 : 0x813;
+  b.set(CMD.PARAMS, block(42, [[0, 4, dpi], [4, 4, dpi], [16, 4, width], [20, 4, height],
+    [24, 4, mode], [28, 1, 0], [29, 1, 4], [32, 4, 0x8000]]));
+
+  // lamp on, sensor state
+  b.status().query(0x1ea1, 1).set(0x1ea2, u8([1])).status();
+  b.cmd(0x1e87, ack(), step(true, u8([0])), step(false, new Uint8Array(0), 10));
+  b.query(0x1e86, 4);
+
+  // analog front end: let the scanner measure its levels, twice, then keep them
+  const levels = block(12, [[0, 1, r.afe], [2, 2, r.timing]]);
+  b.set(CMD.AFE, u8([0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0]));
+  b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
+  b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
+  b.set(0x1e11, u8([r.afe])).set(CMD.AFE, new Uint8Array(12)); // 1e 31: the measured levels, at run time
+
+  // sensor setup and the dark probe
+  b.set(0x1e21, block(26, [[0, 2, r.timing]]));
+  const t07 = new Uint8Array(256).fill(0xff);
+  TYPE07.forEach((v, i) => setU16(t07, i * 2, v));
+  b.cmd(CMD.TABLE, ack(), step(true, u8([0x07, 0, 0, 0, 0, 0, 1, 0])), step(true, t07), ack());
+  const timing = (darkFlag = 0) => block(12, [[0, 2, r.timing], [9, 1, darkFlag]]);
+  b.set(0x1e22, timing());
+  b.set(CMD.WINDOW, block(22, [[0, 2, r.probe[0]], [2, 2, r.probe[1]], [4, 2, 4], [9, 1, 1], [10, 1, div], [16, 1, 0x80], [18, 1, 4]]));
+  b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).status();
+  b.read([16 * 4 * 6 + 8]).status();
+
+  // white reference: 32 lines, 51 steps into the bed, with the probe's offsets
+  b.set(0x1e22, timing());
+  b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, 32], [9, 1, 2], [10, 1, 3], [11, 1, 0x40], [16, 1, 0x80], [17, 1, 0x80], [18, 1, 32]]));
+  b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE); // 1e 42: probe offsets, at run time
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(new Uint16Array([r.slowSpeed])));
+  b.set(CMD.MOVE, block(12, [[0, 4, 51], [4, 2, 3], [10, 2, 8]])).status();
+  b.read([]).status(); // sizes set by retarget()
+
+  // dark reference: lamp off, 16 lines
+  b.set(0x1ea2, u8([0])).set(0x1e22, timing(1));
+  const dark = block(22, [[0, 2, start], [2, 2, end], [4, 2, 16], [9, 1, 1], [10, 1, div], [16, 1, 0x80], [18, 1, 16]]);
+  b.set(CMD.WINDOW, dark).set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).set(CMD.WINDOW, dark.slice()).status();
+  b.read([]).status();
+
+  // lamp on, tone curves, move to the top of the area
+  b.set(0x1ea2, u8([1])).query(0x1e86, 4);
+  const g = bytesOf(gammaTable(gamma));
+  for (const addr of [0x00, 0x20, 0x40]) b.cmd(CMD.TABLE, ack(), step(true, u8([0x02, 0x00, addr, 0x38, 0x00, 0x00, 0x20, 0x00])), step(true, g), ack());
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(ramp(MOVE_RAMP)));
+  const n = 256;
+  b.set(CMD.MOVE, block(12, [[0, 4, r.toTop - 2 * n], [6, 2, n - 1], [8, 2, n - 1], [10, 2, 0x10]]));
+  b.cmd(0x1e05, ack()).status();
+
+  // the image pass
+  b.set(0x1e22, timing());
+  b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, lines], [8, 2, r.imageMode], [10, 1, div],
+    [11, 1, 0x80], [12, 1, 0x80], [16, 1, 0x80], [17, 1, 0xa0], [18, 1, perBlock]])); // 11 and 15: at run time
+  b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE_SCAN); // 1e 42: calibration, at run time
+  b.table([0x06, 0x00, 0x08, 0x01, 0x02], new Uint8Array(window * 6)); // shading: at run time
+  const scanTable = r.scanRamp ? bytesOf(ramp(r.scanRamp)) : bytesOf(new Uint16Array([r.scanSpeed]));
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], scanTable);
+  const used = r.scanRampUsed ? r.scanRampUsed - 1 : 0;
+  b.set(CMD.MOVE, block(12, [[0, 4, lines * div + r.scanTail], [4, 2, r.scanTail], [6, 2, used], [8, 2, used], [10, 2, r.scanFlags]]));
+  b.status().read([]);
+
+  return new Template({
+    name: `built-in ${dpi} dpi`, groups: b.groups, xres: dpi, yres: dpi, width, height, mode, grey, deep: false,
+    windows: [16, window, window, window], used: new Uint8Array(window).fill(1), imageRawWidth: width,
+  });
+}
+
+// The command sequence for scanning `area` (pixels, geometry.js region) at `dpi`.
+function build(dpi, area, options = {}) {
+  return retarget(base(dpi, options), area);
+}
+
+const SUPPORTED = Object.keys(RESOLUTIONS).map(Number);
+
+return { RESOLUTIONS, MOVE_RAMP, gammaTable, ramp, build, SUPPORTED };
+})();
+
+// ---- v500/webusb.js ----
+const __m10 = (() => {
+// Bulk transport to the V500 over WebUSB (Chrome and Edge; see v500/usb.py).
+
+const VENDOR_ID = 0x04b8;
+const PRODUCT_ID = 0x0130;
+const TIMEOUT_MS = 10000;
+
+class WebUsbTransport {
+  constructor(device) {
+    this.device = device;
+  }
+
+  static get supported() {
+    return typeof navigator !== "undefined" && "usb" in navigator;
+  }
+
+  // A scanner this page was allowed before, or null.
+  static async remembered() {
+    const devices = await navigator.usb.getDevices();
+    const d = devices.find((x) => x.vendorId === VENDOR_ID && x.productId === PRODUCT_ID);
+    return d ? WebUsbTransport.open(d) : null;
+  }
+
+  // Ask the user to pick the scanner. Must run from a click.
+  static async request() {
+    const d = await navigator.usb.requestDevice({ filters: [{ vendorId: VENDOR_ID, productId: PRODUCT_ID }] });
+    return WebUsbTransport.open(d);
+  }
+
+  static async open(device) {
+    if (!device.opened) await device.open();
+    if (device.configuration === null) await device.selectConfiguration(1);
+    const iface = device.configuration.interfaces[0];
+    try {
+      await device.claimInterface(iface.interfaceNumber);
+    } catch (e) {
+      throw new Error(`can't claim the scanner (${e.message}). Is another program using it? ` +
+        "On Linux install udev/60-epson-v500.rules; on Windows the device needs the WinUSB driver.");
+    }
+    const t = new WebUsbTransport(device);
+    t.interfaceNumber = iface.interfaceNumber;
+    const eps = iface.alternate.endpoints.filter((e) => e.type === "bulk");
+    t.outEp = eps.find((e) => e.direction === "out");
+    t.inEp = eps.find((e) => e.direction === "in");
+    if (!t.outEp || !t.inEp) throw new Error("scanner has no bulk endpoints");
+    return t;
+  }
+
+  get name() {
+    return this.device.productName || "Epson scanner";
+  }
+
+  async write(data) {
+    const r = await withTimeout(this.device.transferOut(this.outEp.endpointNumber, data), "write");
+    if (r.status !== "ok" || r.bytesWritten !== data.length) {
+      throw new Error(`short write: ${r.bytesWritten} of ${data.length} bytes (${r.status})`);
+    }
+  }
+
+  async read(size) {
+    // Ask for at least one full packet: a shorter request overflows if the
+    // scanner sends more than `size` bytes.
+    const want = Math.max(size, this.inEp.packetSize);
+    const r = await withTimeout(this.device.transferIn(this.inEp.endpointNumber, want), "read");
+    if (r.status !== "ok") throw new Error(`read failed: ${r.status}`);
+    return new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
+  }
+
+  async close() {
+    try {
+      await this.device.releaseInterface(this.interfaceNumber);
+    } catch { /* already gone */ }
+    await this.device.close();
+  }
+}
+
+function withTimeout(promise, what) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`scanner didn't answer (${what} timed out); power-cycle it if this repeats`)), TIMEOUT_MS);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+return { VENDOR_ID, PRODUCT_ID, WebUsbTransport };
+})();
+
+// ---- app.js ----
+// The scanner page: connect over WebUSB, upload firmware, scan, paint rows live.
+
+const { findFirmware } = __m1;
+const { parseFirmware, status, isLoaded, upload } = __m2;
+const { fromMm, fullBed, retarget } = __m4;
+const { build, SUPPORTED } = __m9;
+const { Replayer, Template } = __m6;
+const { WebUsbTransport } = __m10;
+const $ = (id) => document.getElementById(id);
+const ui = {
+  connect: $("connect"), device: $("device"), firmware: $("firmware"), firmwareName: $("firmware-name"),
+  templates: $("templates"), templatesList: $("templates-list"), forget: $("forget"),
+  dpi: $("dpi"), mode: $("mode"), preset: $("area-preset"), areaMm: $("area-mm"),
+  left: $("left"), top: $("top"), width: $("width"), height: $("height"),
+  scan: $("scan"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
+  canvas: $("canvas"), placeholder: $("placeholder"), unsupported: $("unsupported"),
+};
+
+const state = {
+  io: null,
+  firmware: null, // parsed esfw7C.bin
+  templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
+  scanning: false,
+};
+
+// ---- stored files (IndexedDB; this browser only) ----
+
+const DB = "v500-scanner";
+
+function db() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("files");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Storage can fail or never answer (private windows, blocked site data): give
+// up after a moment and work without it.
+async function store(op, ...args) {
+  const attempt = (async () => {
+    const d = await db();
+    return await new Promise((resolve, reject) => {
+      const tx = d.transaction("files", op.startsWith("get") ? "readonly" : "readwrite");
+      const req = tx.objectStore("files")[op](...args);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  })();
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(undefined), 2000));
+  try {
+    return await Promise.race([attempt, timeout]);
+  } catch {
+    return undefined;
+  }
+}
+
+// ---- helpers ----
+
+function log(line) {
+  ui.log.textContent += line + "\n";
+  ui.log.scrollTop = ui.log.scrollHeight;
+}
+
+function say(text, kind = "") {
+  ui.status.textContent = text;
+  ui.status.className = "status " + kind;
+}
+
+function refresh() {
+  ui.scan.disabled = !state.io || state.scanning;
+  ui.connect.disabled = state.scanning;
+  const dpi = Number(ui.dpi.value);
+  const builtIn = SUPPORTED.includes(dpi);
+  ui.mode.querySelector('[value="grey"]').disabled = !builtIn && !state.templates.get(dpi)?.grey;
+  if (!builtIn) ui.mode.value = state.templates.get(dpi)?.grey ? "grey" : "colour";
+  for (const el of [ui.firmware, ui.templates, ui.dpi, ui.mode, ui.preset, ui.left, ui.top, ui.width, ui.height, ui.forget]) {
+    el.disabled = state.scanning;
+  }
+}
+
+// ---- scanner ----
+
+async function attach(io) {
+  state.io = io;
+  try {
+    const s = await status(io);
+    ui.device.textContent = `${io.name}: ${isLoaded(s) ? "firmware running" : "needs firmware"}`;
+  } catch (e) {
+    ui.device.textContent = `${io.name}: not answering`;
+    say(`The scanner didn't answer: ${e.message}`, "bad");
+  }
+  refresh();
+}
+
+ui.connect.addEventListener("click", async () => {
+  try {
+    if (state.io) await state.io.close().catch(() => {});
+    state.io = null;
+    await attach(await WebUsbTransport.request());
+  } catch (e) {
+    if (e.name !== "NotFoundError") say(e.message, "bad"); // NotFoundError: picker closed
+    refresh();
+  }
+});
+
+// ---- files ----
+
+async function useFirmware(name, data) {
+  state.firmware = parseFirmware(data);
+  ui.firmwareName.textContent = `${state.firmware.ident} (from ${name})`;
+}
+
+function addTemplate(name, data) {
+  let t;
+  try {
+    t = Template.fromUsblog(data, name);
+  } catch {
+    return `${name}: not a scan, skipped`;
+  }
+  if (t.deep) return `${name}: 16-bit, skipped (16-bit scans hang the scanner)`;
+  if (t.xres !== t.yres) return `${name}: unequal x and y resolution, skipped`;
+  const have = state.templates.get(t.yres);
+  if (SUPPORTED.includes(t.yres)) return `${name}: ${t.yres} dpi is built in, template not needed`;
+  if (!have || (have.grey && !t.grey)) state.templates.set(t.yres, t);
+  return null;
+}
+
+function showTemplates(notes = []) {
+  const extra = [...state.templates.keys()].sort((a, b) => a - b);
+  ui.templatesList.textContent = extra.length
+    ? extra.map((d) => `${d} dpi ${state.templates.get(d).grey ? "grey" : "colour"}`).join(", ")
+    : "none";
+  if (notes.length) log(notes.join("\n"));
+  const keep = Number(ui.dpi.value) || SUPPORTED[0];
+  const dpis = [...new Set([...SUPPORTED, ...extra])].sort((a, b) => a - b);
+  ui.dpi.replaceChildren(...dpis.map((d) => new Option(`${d} dpi${SUPPORTED.includes(d) ? "" : " (template)"}`, d, false, d === keep)));
+  refresh();
+}
+
+ui.firmware.addEventListener("change", async () => {
+  const f = ui.firmware.files[0];
+  if (!f) return;
+  try {
+    say("Reading the firmware…");
+    const data = await findFirmware(await f.arrayBuffer());
+    await useFirmware(f.name, data.buffer);
+    await store("put", { name: f.name, data: data.buffer }, "firmware");
+    say("Firmware ready.", "ok");
+  } catch (e) {
+    say(e.message, "bad");
+  }
+});
+
+ui.templates.addEventListener("change", async () => {
+  const notes = [];
+  for (const f of ui.templates.files) {
+    const data = await f.arrayBuffer();
+    const note = addTemplate(f.name, data);
+    if (note) notes.push(note);
+    else await store("put", { name: f.name, data }, "template:" + f.name);
+  }
+  showTemplates(notes);
+});
+
+ui.forget.addEventListener("click", async () => {
+  await store("clear");
+  state.firmware = null;
+  state.templates.clear();
+  ui.firmwareName.textContent = "none";
+  showTemplates();
+  say("Stored files forgotten.");
+});
+
+ui.dpi.addEventListener("change", refresh);
+
+ui.preset.addEventListener("change", () => {
+  ui.areaMm.hidden = ui.preset.value !== "custom";
+});
+
+// ---- scanning ----
+
+function paint(ctx, { top, rows, data, width, channels }) {
+  const img = ctx.createImageData(width, rows);
+  const px = img.data;
+  for (let i = 0, n = width * rows; i < n; i++) {
+    const s = i * channels;
+    px[i * 4] = data[s];
+    px[i * 4 + 1] = data[channels === 3 ? s + 1 : s];
+    px[i * 4 + 2] = data[channels === 3 ? s + 2 : s];
+    px[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, top);
+}
+
+ui.scan.addEventListener("click", async () => {
+  const dpi = Number(ui.dpi.value);
+  const template = state.templates.get(dpi);
+  if (!state.io || (!SUPPORTED.includes(dpi) && !template)) return;
+  state.scanning = true;
+  refresh();
+  ui.save.disabled = true;
+  ui.progress.hidden = false;
+  ui.progress.value = 0;
+  try {
+    const io = state.io;
+    if (!isLoaded(await status(io))) {
+      if (!state.firmware) throw new Error("The scanner needs its firmware: pick your esfw7C.bin first.");
+      say("Uploading firmware…");
+      await upload(state.firmware, io);
+      log(`firmware uploaded: ${state.firmware.ident}`);
+      ui.device.textContent = `${io.name}: firmware running`;
+    }
+    const area = ui.preset.value === "full"
+      ? fullBed(dpi)
+      : fromMm(dpi, +ui.left.value, +ui.top.value, +ui.width.value, +ui.height.value);
+    const t = SUPPORTED.includes(dpi) ? build(dpi, area, { grey: ui.mode.value === "grey" }) : retarget(template, area);
+    log(`scan: ${t.width} x ${t.height} px at ${dpi} dpi, ${t.grey ? "grey" : "colour"}, from ${t.name}`);
+
+    ui.canvas.width = t.width;
+    ui.canvas.height = t.height;
+    ui.placeholder.hidden = true;
+    const ctx = ui.canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, t.width, t.height);
+
+    say("Warming up and calibrating…");
+    const started = performance.now();
+    let imaging = false;
+    const replayer = new Replayer(t, io, {
+      log,
+      onRows: (r) => {
+        if (!imaging) {
+          imaging = true;
+          say("Scanning…");
+        }
+        paint(ctx, r);
+        ui.progress.value = (r.top + r.rows) / t.height;
+      },
+      onProgress: (i, n) => {
+        if (!imaging) ui.progress.value = (0.15 * i) / n; // setup and calibration: the first sliver
+      },
+    });
+    await replayer.run();
+    ui.progress.value = 1;
+    say(`Done: ${t.width} x ${t.height} px in ${((performance.now() - started) / 1000).toFixed(1)} s.`, "ok");
+    ui.save.disabled = false;
+  } catch (e) {
+    say(`Scan failed: ${e.message}`, "bad");
+    log(`error: ${e.stack || e.message}`);
+  } finally {
+    state.scanning = false;
+    refresh();
+  }
+});
+
+ui.save.addEventListener("click", () => {
+  ui.canvas.toBlob((blob) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `v500-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }, "image/png");
+});
+
+// ---- start ----
+
+async function start() {
+  if (!WebUsbTransport.supported) {
+    ui.unsupported.hidden = false;
+    ui.connect.disabled = true;
+  } else {
+    navigator.usb.addEventListener("disconnect", (e) => {
+      if (state.io && e.device === state.io.device) {
+        state.io = null;
+        ui.device.textContent = "Disconnected";
+        refresh();
+      }
+    });
+    try {
+      const io = await WebUsbTransport.remembered();
+      if (io) await attach(io);
+    } catch (e) {
+      log(`couldn't reopen the scanner: ${e.message}`);
+    }
+  }
+
+  const fw = await store("get", "firmware");
+  if (fw) await useFirmware(fw.name, fw.data).catch(() => {});
+  const keys = (await store("getAllKeys")) ?? [];
+  const notes = [];
+  for (const key of keys.filter((k) => String(k).startsWith("template:"))) {
+    const f = await store("get", key);
+    const note = f && addTemplate(f.name, f.data);
+    if (note) notes.push(note);
+  }
+  showTemplates(notes);
+  refresh();
+}
+
+start();
+
+</script>
+</head>
+<body>
+  <header>
+    <h1>V500 Scanner</h1>
+    <p class="sub">Epson Perfection V500 Photo, driven from the browser over WebUSB. No Epson software involved.</p>
+  </header>
+
+  <p id="unsupported" class="banner" hidden>
+    This browser has no WebUSB. Use Chrome or Edge on a computer, and open the page from
+    <code>http://localhost</code> or over https.
+  </p>
+
+  <main>
+    <section class="panel">
+      <h2><span class="n">1</span> Scanner</h2>
+      <div class="row">
+        <button id="connect">Connect</button>
+        <span id="device" class="muted">Not connected</span>
+      </div>
+
+      <h2><span class="n">2</span> Firmware</h2>
+      <p class="muted small">The scanner needs its firmware after every power-on. Pick Epson's Linux
+        driver download (<code>iscan-gt-x770-bundle-*.tar.gz</code>, from Epson's support site); the
+        page takes the firmware out of it and keeps it in this browser.</p>
+      <label class="file">
+        <input id="firmware" type="file" accept=".gz,.deb,.bin">
+        <span id="firmware-name" class="muted small">none</span>
+      </label>
+      <details class="advanced">
+        <summary>Templates (optional)</summary>
+        <p class="muted small">Captures of Epson's driver (<code>tools/capture</code>) add resolutions
+          the page can't build yet.</p>
+        <label class="file">
+          <input id="templates" type="file" accept=".usblog" multiple>
+          <span id="templates-list" class="muted small">none</span>
+        </label>
+      </details>
+      <button id="forget" class="link">Forget stored files</button>
+
+      <h2><span class="n">3</span> Scan</h2>
+      <div class="grid">
+        <label>Resolution <select id="dpi"></select></label>
+        <label>Mode <select id="mode">
+          <option value="colour">Colour</option>
+          <option value="grey">Grey</option>
+        </select></label>
+      </div>
+      <div class="grid">
+        <label>Area <select id="area-preset">
+          <option value="full">Full bed</option>
+          <option value="custom">Custom (mm)</option>
+        </select></label>
+      </div>
+      <div id="area-mm" class="grid four" hidden>
+        <label>Left <input id="left" type="number" min="0" max="215" step="1" value="20"></label>
+        <label>Top <input id="top" type="number" min="0" max="297" step="1" value="30"></label>
+        <label>Width <input id="width" type="number" min="1" max="215" step="1" value="150"></label>
+        <label>Height <input id="height" type="number" min="1" max="297" step="1" value="100"></label>
+      </div>
+      <div class="row">
+        <button id="scan" class="primary" disabled>Scan</button>
+        <button id="save" disabled>Save PNG</button>
+      </div>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <p id="status" class="status" role="status"></p>
+      <details>
+        <summary>Log</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+
+    <section class="preview">
+      <canvas id="canvas" width="0" height="0"></canvas>
+      <p id="placeholder" class="muted">The scan paints here as the head moves.</p>
+    </section>
+  </main>
+</body>
+</html>
