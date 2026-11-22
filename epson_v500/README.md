@@ -235,12 +235,11 @@ hardware you own falls under the EULA's personal-use grant.
 - [x] WebUSB page (`web/`): the driver in plain JavaScript; matches the
       Python byte for byte on every capture, runs end to end on a simulated
       scanner.
-- [x] Scans without any capture (`web/v500/protocol.js`): 200 and 400 dpi
-      checked on the real scanner, through the JS driver.
-- [x] Firmware straight from Epson's download, in the browser (`web/v500/bundle.js`).
-- [ ] 800 dpi from scratch on the real scanner: the first try (1,889 px
-      wide) hung it. Widths are now padded like Epson's; retest after a
-      power cycle.
+- [x] Scans without any capture (`web/v500/protocol.js`), checked on the
+      real scanner through the JS driver: 200 dpi colour and grey, 400 dpi
+      (also 203 mm wide), 800 dpi (also a padded 1,288 px width).
+- [x] Firmware straight from Epson's download (`web/v500/bundle.js`),
+      uploaded to the real scanner by the JS driver.
 - [ ] First WebUSB scan on the real scanner, from the page.
 - [ ] 1600 dpi: needs `tools/capture/capture.sh --set 2`.
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.

@@ -11,6 +11,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { findFirmware } from "../v500/bundle.js";
 import { parseFirmware, upload } from "../v500/firmware.js";
 import { fromMm, fullBed, retarget } from "../v500/geometry.js";
 import { build } from "../v500/protocol.js";
@@ -101,7 +102,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   try {
     const fw = arg("--firmware");
     if (fw) {
-      const f = readFileSync(fw[0]);
+      const f = await findFirmware(readFileSync(fw[0])); // esfw7C.bin, or Epson's bundle / plugin .deb
       if (await upload(parseFirmware(f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength)), io)) console.log("firmware uploaded");
     }
     const started = Date.now();

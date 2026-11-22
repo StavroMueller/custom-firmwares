@@ -250,7 +250,7 @@ the other captures, and on the real scanner.
 `web/v500/protocol.js` builds the whole sequence from scratch at 200, 400
 and 800 dpi, colour or grey. It rebuilds every capture exactly, apart from
 the values measured live (`web/test/protocol.test.js`), and it scans
-correctly on the real scanner at 200 and 400 dpi.
+correctly on the real scanner at 200, 400 and 800 dpi, colour and grey.
 
 Every capture sends the same 93 commands in the same order (repeated polls
 collapsed). Almost all parameters are fixed. The tables are computed:
