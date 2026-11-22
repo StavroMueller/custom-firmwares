@@ -71,6 +71,29 @@
       </div>
       <progress id="progress" max="1" value="0" hidden></progress>
       <p id="status" class="status" role="status"></p>
+      <h2><span class="n">4</span> Booth mode</h2>
+      <p class="muted small">Full screen, a big Scan button and a countdown. Space or Enter scans
+        too, so a USB foot pedal works. Uses the scan settings above.</p>
+      <div class="grid">
+        <label>Turn the image <select id="booth-rotate">
+          <option value="0">upright</option>
+          <option value="90">90° right</option>
+          <option value="180">180°</option>
+          <option value="270">90° left</option>
+        </select></label>
+        <label>Countdown <select id="booth-countdown">
+          <option value="0">none</option>
+          <option value="3" selected>3 s</option>
+          <option value="5">5 s</option>
+        </select></label>
+      </div>
+      <div class="row">
+        <button id="booth-folder">Save photos to a folder…</button>
+        <span id="booth-folder-name" class="muted small">not saving</span>
+      </div>
+      <div class="row">
+        <button id="booth-start" disabled>Start booth</button>
+      </div>
       <details>
         <summary>Log</summary>
         <pre id="log"></pre>
@@ -82,5 +105,18 @@
       <p id="placeholder" class="muted">The scan paints here as the head moves.</p>
     </section>
   </main>
+
+  <div id="booth" class="booth" hidden>
+    <div class="booth-stage">
+      <canvas id="booth-canvas" width="0" height="0"></canvas>
+      <div id="booth-count" class="booth-count" hidden></div>
+      <p id="booth-hint" class="booth-hint">Press your face to the glass, close your eyes, then tap Scan.</p>
+    </div>
+    <div class="booth-bar">
+      <button id="booth-exit">Exit</button>
+      <span id="booth-status" class="booth-status"></span>
+      <button id="booth-go" class="primary booth-go">Scan</button>
+    </div>
+  </div>
 </body>
 </html>

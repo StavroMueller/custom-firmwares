@@ -32,6 +32,18 @@ moves. No capture of Epson's driver is needed. Templates
 (`captures/<ts>/*.usblog`) are optional and only add resolutions the page
 can't build yet.
 
+**Booth mode** turns the page into the photo booth itself, no server or
+iPad needed. Pick how to turn the image (for the vertical mount), a
+countdown, and optionally a folder to save every photo in. Then click Start
+booth: a full-screen view with a big Scan button. Space or Enter also scan,
+so a USB foot pedal works; Escape leaves. Any laptop, mini PC or Android
+tablet with Chrome can run it. iPads can't, because Safari has no WebUSB.
+
+The page reuses the analog levels the scanner measured on an earlier scan
+(for up to 10 minutes). That skips 2.2 s of self-measurement: on the real
+scanner, the first rows of a 60 x 40 mm scan appear after 3.1 s instead of
+5.3 s, with the same image quality.
+
 `web/test/sim.html` runs the same page against a simulated scanner that
 replays a capture (serve `epson_v500/` and open
 `/web/test/sim.html?template=/captures/<ts>/02-color-200-full.usblog`). The
