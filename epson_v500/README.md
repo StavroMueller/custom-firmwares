@@ -179,8 +179,9 @@ hardware you own falls under the EULA's personal-use grant.
 - [x] Download the bundle, check its sha256, and do a first static pass on the plugin.
 - [x] Trace harness (`tools/trace.c`): captured the firmware upload without
       hardware. See [PROTOCOL.md](PROTOCOL.md).
-- [ ] Trace with the real scanner: every ESC/I command and the USB traffic it
-      turns into.
+- [x] Trace with the real scanner: a full 200 dpi scan, every transfer with
+      full data (`tools/capture/`). First notes in [PROTOCOL.md](PROTOCOL.md).
+- [ ] Decode the raw image data, and the `1e` register commands.
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.
 - [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).
