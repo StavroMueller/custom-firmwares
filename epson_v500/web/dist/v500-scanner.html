@@ -98,6 +98,7 @@ label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .file { margin: 8px 0 10px; }
 label.check { display: block; margin: 6px 0; color: var(--ink); }
 label.check input { margin-right: 6px; }
+label.check.bottom { align-self: end; padding-bottom: 8px; }
 .file > span:first-child { color: var(--ink); }
 
 input, select, button {
@@ -175,9 +176,28 @@ canvas[width="0"] { display: none; }
   grid-template-rows: 1fr auto;
   z-index: 10;
 }
+.booth { grid-template-rows: 1fr auto auto; }
 .booth-stage { position: relative; display: grid; place-items: center; overflow: hidden; padding: 16px; }
-.booth-stage canvas { max-width: 96vw; max-height: calc(100vh - 140px); box-shadow: 0 2px 30px rgb(0 0 0 / 0.6); }
-.booth-stage canvas.turned { max-width: calc(100vh - 140px); max-height: 96vw; }
+.booth-stage canvas, .booth-stage img { max-width: 96vw; max-height: calc(100vh - 230px); box-shadow: 0 2px 30px rgb(0 0 0 / 0.6); }
+.booth-stage canvas.turned { max-width: calc(100vh - 230px); max-height: 96vw; }
+.booth-strip { display: flex; gap: 8px; padding: 0 24px; height: 84px; overflow-x: auto; }
+.booth-strip img { height: 76px; border-radius: 4px; cursor: pointer; opacity: 0.85; }
+.booth-strip img:hover { opacity: 1; }
+.booth-attention {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  background: rgb(10 10 9 / 0.92); padding: 24px;
+}
+.booth-attention h2 { font-size: clamp(28px, 5vw, 56px); color: #ffd66b; text-transform: none; letter-spacing: 0; display: block; margin: 0 0 12px; }
+.booth-attention p { font-size: clamp(18px, 2.6vw, 30px); max-width: 60ch; margin: 0 auto; }
+.booth-corner { position: absolute; top: 0; left: 0; width: 64px; height: 64px; }
+.booth-operator {
+  position: absolute; top: 24px; left: 24px; background: #1f1f1d; color: #ecebe7; border: 1px solid #3a3a33;
+  border-radius: 12px; padding: 16px 18px; max-width: min(520px, 92vw); z-index: 2;
+}
+.booth-operator h2 { color: #a09d96; margin: 0 0 8px; }
+.booth-operator pre { background: #161615; border-color: #34332f; color: #ecebe7; }
+.booth-operator button { background: #26261f; color: #f2f1ed; border-color: #3a3a33; }
+.booth-print { position: absolute; width: 0; height: 0; border: 0; visibility: hidden; }
 .booth-count {
   position: absolute;
   font-size: min(40vh, 40vw);
@@ -270,8 +290,87 @@ async function findFirmware(bytes) {
 return { gunzip, untar, unar, findFirmware };
 })();
 
-// ---- v500/bytes.js ----
+// ---- effects.js ----
 const __m3 = (() => {
+// Looks for booth photos, and the framed layout they're saved and printed in.
+// Pure pixel work on RGBA data, so it runs anywhere (tests run it in Node).
+
+const EFFECTS = {
+  natural: "Natural",
+  mono: "Black & white",
+  contrast: "High contrast",
+  photocopy: "Photocopy",
+};
+
+const luma = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+
+// Apply an effect in place to RGBA pixels (an ImageData's .data).
+function applyEffect(px, effect) {
+  if (effect === "natural" || !EFFECTS[effect]) return px;
+  for (let i = 0; i < px.length; i += 4) {
+    let v = luma(px[i], px[i + 1], px[i + 2]);
+    if (effect === "contrast") {
+      // an S-curve: deeper shadows, brighter highlights
+      const x = v / 255;
+      v = 255 * (x < 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x));
+    } else if (effect === "photocopy") {
+      // hard black and white with a little toner grain
+      v = clamp((v - 128) * 3.2 + 150 + ((i * 2654435761) % 23) - 11);
+    }
+    px[i] = px[i + 1] = px[i + 2] = v;
+  }
+  return px;
+}
+
+// Sizes for a framed photo: a white border and a band at the bottom for the
+// caption, in proportion to the photo.
+function frameLayout(width, height, { caption = "", date = "" } = {}) {
+  const border = Math.round(Math.max(width, height) * 0.04);
+  const band = caption || date ? Math.round(Math.max(width, height) * 0.12) : 0;
+  return { border, band, width: width + 2 * border, height: height + 2 * border + band };
+}
+
+// Draw `src` (a canvas), turned clockwise by `deg`, into a new canvas with
+// the frame and caption. makeCanvas(w, h) creates the canvas (DOM or test).
+function compose(src, { deg = 0, caption = "", date = "", framed = true, makeCanvas }) {
+  const side = deg % 180 !== 0;
+  const w = side ? src.height : src.width;
+  const h = side ? src.width : src.height;
+  const layout = framed ? frameLayout(w, h, { caption, date }) : { border: 0, band: 0, width: w, height: h };
+  const c = makeCanvas(layout.width, layout.height);
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.save();
+  ctx.translate(layout.border + w / 2, layout.border + h / 2);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  ctx.restore();
+  if (layout.band) {
+    const y = layout.border + h + layout.band / 2;
+    ctx.fillStyle = "#222";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const size = Math.round(layout.band * (date && caption ? 0.32 : 0.42));
+    ctx.font = `600 ${size}px system-ui, sans-serif`;
+    if (caption && date) {
+      ctx.fillText(caption, c.width / 2, y - size * 0.6);
+      ctx.font = `400 ${Math.round(size * 0.7)}px system-ui, sans-serif`;
+      ctx.fillStyle = "#666";
+      ctx.fillText(date, c.width / 2, y + size * 0.7);
+    } else {
+      ctx.fillText(caption || date, c.width / 2, y);
+    }
+  }
+  return c;
+}
+
+return { EFFECTS, applyEffect, frameLayout, compose };
+})();
+
+// ---- v500/bytes.js ----
+const __m5 = (() => {
 // Small helpers for little-endian byte blocks.
 
 function concat(parts) {
@@ -328,12 +427,12 @@ return { concat, view, u16, u32, setU16, setU32, hex, equal, commandId, commandB
 })();
 
 // ---- v500/device.js ----
-const __m2 = (() => {
+const __m4 = (() => {
 // Scanner controls outside a scan: front-panel buttons, aborting a scan,
 // sending the carriage home. From static analysis of Epson's plugin
 // (PROTOCOL.md, "Buttons, abort and home").
 
-const { hex } = __m3;
+const { hex } = __m5;
 const ACK = 0x06;
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -382,16 +481,468 @@ async function home(io, { sleep = sleepMs } = {}) {
   return waitIdle(io, { sleep });
 }
 
-return { pressedButton, status, busy, waitIdle, abortScan, home };
+// Is the lamp on? `1e a1`, no ACK, one byte: 01 on, 00 off (checked on the
+// real scanner; it stays on while idle once switched on).
+async function lampIsOn(io) {
+  await io.write(new Uint8Array([0x1e, 0xa1]));
+  const r = await io.read(1);
+  return Boolean(r[0] & 0x01);
+}
+
+// Switch the lamp on (`1e a2 01`), as every scan does first. A warm lamp
+// avoids the slow first scan after it has been off.
+async function lampOn(io) {
+  for (const part of [[0x1e, 0xa2], [0x01]]) {
+    await io.write(new Uint8Array(part));
+    const r = await io.read(1);
+    if (r[0] !== ACK) throw new Error(`lamp: scanner replied ${hex(r)}`);
+  }
+}
+
+return { pressedButton, status, busy, waitIdle, abortScan, home, lampIsOn, lampOn };
+})();
+
+// ---- booth.js ----
+const __m2 = (() => {
+// Booth mode: the page as a party photo booth, with no server.
+//
+// Full screen, countdown with beeps, the scanner's own buttons / Space /
+// Enter / a foot pedal to scan, effects and a framed caption, a gallery
+// strip, a slideshow window for a second screen, printing, saving to a
+// folder, a warm lamp, and a clear screen when the scanner needs a person.
+// An operator panel (press O, or tap the top-left corner three times) has
+// the counters and the clean-up buttons.
+
+const { compose, EFFECTS, applyEffect } = __m3;
+const { lampIsOn, lampOn, pressedButton, status } = __m4;
+const $ = (id) => document.getElementById(id);
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const SETTINGS = "v500-booth-settings";
+const GALLERY_SIZE = 24;
+const LAMP_CHECK_MS = 60_000; // keep the lamp warm: check once a minute while idle
+const STUCK_AFTER_MS = 20_000; // busy this long while idle: an earlier scan never finished
+
+// ctx: {state, performScan(canvas, onStatus), exclusive(fn), log(line), recalibrate()}
+function setupBooth(ctx) {
+  const { state, log } = ctx;
+  const el = {
+    root: $("booth"), canvas: $("booth-canvas"), photo: $("booth-photo"), count: $("booth-count"),
+    hint: $("booth-hint"), status: $("booth-status"), go: $("booth-go"), exit: $("booth-exit"),
+    strip: $("booth-strip"), attention: $("booth-attention"), attentionTitle: $("booth-attention-title"),
+    attentionText: $("booth-attention-text"), operator: $("booth-operator"), opStats: $("op-stats"),
+    corner: $("booth-corner"), printFrame: $("booth-print"),
+    // settings in the side panel
+    start: $("booth-start"), rotate: $("booth-rotate"), countdown: $("booth-countdown"), effect: $("booth-effect"),
+    frame: $("booth-frame"), caption: $("booth-caption"), date: $("booth-date"), print: $("booth-print-each"),
+    clean: $("booth-clean"), folder: $("booth-folder"), folderName: $("booth-folder-name"), slideshow: $("booth-slideshow"),
+  };
+  const booth = {
+    open: false, busy: false, dir: null, wakeLock: null, gallery: [], saved: [], slideshow: null,
+    scans: 0, failures: 0, lastError: "", sinceClean: 0, needsClean: false, attention: null,
+    lastLampCheck: 0, busySince: 0,
+  };
+
+  // ---- settings, remembered in this browser ----
+
+  el.effect.replaceChildren(...Object.entries(EFFECTS).map(([k, v]) => new Option(v, k)));
+  const fields = ["rotate", "countdown", "effect", "caption", "clean"];
+  const checks = ["frame", "date", "print"];
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS) || "{}");
+    for (const f of fields) if (saved[f] != null) el[f].value = saved[f];
+    for (const f of checks) if (saved[f] != null) el[f].checked = saved[f];
+  } catch { /* storage blocked: defaults */ }
+  const remember = () => {
+    const s = {};
+    for (const f of fields) s[f] = el[f].value;
+    for (const f of checks) s[f] = el[f].checked;
+    try {
+      localStorage.setItem(SETTINGS, JSON.stringify(s));
+    } catch { /* storage blocked */ }
+  };
+  for (const f of [...fields, ...checks]) el[f].addEventListener("change", remember);
+
+  // ---- sound ----
+
+  let audio = null;
+  function beep(freq = 880, ms = 120, volume = 0.15) {
+    try {
+      audio ??= new AudioContext();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(volume, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + ms / 1000);
+      o.connect(g).connect(audio.destination);
+      o.start();
+      o.stop(audio.currentTime + ms / 1000);
+    } catch { /* no audio: silent */ }
+  }
+
+  // ---- keeping the computer awake ----
+
+  async function keepAwake() {
+    try {
+      if (booth.open && !booth.wakeLock && "wakeLock" in navigator) {
+        booth.wakeLock = await navigator.wakeLock.request("screen");
+        booth.wakeLock.addEventListener("release", () => (booth.wakeLock = null));
+      }
+    } catch (e) {
+      log(`couldn't keep the screen awake: ${e.message}`);
+    }
+  }
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && keepAwake());
+
+  // ---- the "needs a person" screen ----
+
+  const ATTENTION = {
+    disconnected: ["Scanner unplugged", "Plug the scanner's USB cable back in. The booth carries on by itself."],
+    stuck: ["Scanner needs a restart", "Switch the scanner off, wait 5 seconds, and switch it on again."],
+    clean: ["Time to wipe the glass", "Give the scanner glass a quick wipe, then press Scan to carry on."],
+  };
+  function attention(kind) {
+    booth.attention = kind;
+    el.attention.hidden = !kind;
+    if (kind) {
+      [el.attentionTitle.textContent, el.attentionText.textContent] = ATTENTION[kind];
+      log(`booth: ${ATTENTION[kind][0]}`);
+    }
+  }
+
+  // Called by the page when the scanner disappears or comes back.
+  ctx.onConnection = (connected) => {
+    if (!booth.open) return;
+    if (!connected) attention("disconnected");
+    else if (booth.attention === "disconnected" || booth.attention === "stuck") attention(null);
+  };
+
+  // ---- gallery and slideshow ----
+
+  function addToGallery(blob, name) {
+    const url = URL.createObjectURL(blob);
+    booth.gallery.unshift({ url, name });
+    for (const old of booth.gallery.splice(GALLERY_SIZE)) URL.revokeObjectURL(old.url);
+    el.strip.replaceChildren(...booth.gallery.map((p) => {
+      const img = new Image();
+      img.src = p.url;
+      img.alt = p.name;
+      img.addEventListener("click", () => showPhoto(p.url));
+      return img;
+    }));
+    updateSlideshow(url);
+  }
+
+  function showPhoto(url) {
+    el.canvas.hidden = true;
+    el.photo.hidden = false;
+    el.photo.src = url;
+    el.hint.hidden = true;
+  }
+
+  // A second window, for a TV: the newest photo, then the recent ones in turn.
+  function openSlideshow() {
+    const w = window.open("", "v500-slideshow", "popup,width=1280,height=720");
+    if (!w) {
+      log("the browser blocked the slideshow window; allow pop-ups for this page");
+      return;
+    }
+    w.document.title = "Scan booth";
+    w.document.body.style.cssText = "margin:0;background:#000;display:grid;place-items:center;height:100vh;overflow:hidden";
+    w.document.body.innerHTML = '<img id="s" style="max-width:100vw;max-height:100vh;transition:opacity .6s">';
+    booth.slideshow = { w, index: 0, hold: 0 };
+    w.document.body.addEventListener("click", () => w.document.documentElement.requestFullscreen?.().catch(() => {}));
+    updateSlideshow();
+  }
+
+  function updateSlideshow(newest) {
+    const s = booth.slideshow;
+    if (!s || s.w.closed) return;
+    const img = s.w.document.getElementById("s");
+    if (newest) {
+      img.src = newest;
+      s.index = 0;
+      s.hold = Date.now() + 15_000; // show a fresh photo a little longer
+    } else if (booth.gallery.length) {
+      img.src = booth.gallery[s.index % booth.gallery.length].url;
+    }
+  }
+  setInterval(() => {
+    const s = booth.slideshow;
+    if (!s || s.w.closed || !booth.gallery.length || Date.now() < s.hold) return;
+    s.index = (s.index + 1) % booth.gallery.length;
+    updateSlideshow();
+  }, 6000);
+
+  // ---- saving and printing ----
+
+  async function save(blob, name) {
+    if (!booth.dir) return;
+    try {
+      const file = await booth.dir.getFileHandle(name, { create: true });
+      const w = await file.createWritable();
+      await w.write(blob);
+      await w.close();
+      booth.saved.push(name);
+      log(`saved ${name}`);
+    } catch (e) {
+      log(`couldn't save ${name}: ${e.message}`);
+    }
+  }
+
+  // Print through a hidden frame. With Chrome's --kiosk-printing flag this
+  // goes straight to the default printer, with no dialog.
+  function print(url) {
+    const doc = el.printFrame.contentDocument;
+    doc.open();
+    doc.write(`<!doctype html><style>@page{margin:6mm}html,body{margin:0;height:100%}
+      img{display:block;max-width:100%;max-height:100%;margin:auto}</style><img src="${url}">`);
+    doc.close();
+    const img = doc.querySelector("img");
+    img.onload = () => el.printFrame.contentWindow.print();
+  }
+
+  el.folder.addEventListener("click", async () => {
+    if (!window.showDirectoryPicker) {
+      el.folderName.textContent = "this browser can't save to folders";
+      return;
+    }
+    try {
+      booth.dir = await window.showDirectoryPicker({ mode: "readwrite", id: "v500-booth" });
+      el.folderName.textContent = `saving to ${booth.dir.name}/`;
+    } catch { /* picker closed */ }
+  });
+  el.slideshow.addEventListener("click", openSlideshow);
+
+  // ---- a scan ----
+
+  async function scan() {
+    if (booth.busy || state.scanning || !booth.open) return;
+    if (booth.attention && booth.attention !== "clean") return;
+    if (booth.attention === "clean") {
+      attention(null);
+      booth.sinceClean = 0;
+      return; // the press that dismisses the reminder doesn't scan
+    }
+    if (!state.io) return attention("disconnected");
+    booth.busy = state.scanning = true;
+    el.go.disabled = true;
+    ctx.refresh();
+    try {
+      for (let n = Number(el.countdown.value); n > 0; n--) {
+        el.hint.hidden = true;
+        el.count.hidden = false;
+        el.count.textContent = n;
+        beep(660, 140);
+        await wait(1000);
+      }
+      el.count.hidden = true;
+      el.hint.hidden = true;
+      beep(990, 220);
+      const deg = Number(el.rotate.value);
+      el.photo.hidden = true;
+      el.canvas.hidden = false;
+      el.canvas.style.transform = deg ? `rotate(${deg}deg)` : "";
+      el.canvas.classList.toggle("turned", deg % 180 !== 0);
+      const r = await ctx.performScan(el.canvas, (text) => (el.status.textContent = text === "Scanning…" ? "Hold still…" : text));
+      booth.scans++;
+      booth.sinceClean++;
+      log(`booth scan ${booth.scans}: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s`);
+
+      // the finished photo: effect, turned upright, framed
+      const c2 = el.canvas.getContext("2d");
+      const img = c2.getImageData(0, 0, el.canvas.width, el.canvas.height);
+      applyEffect(img.data, el.effect.value);
+      c2.putImageData(img, 0, 0);
+      const date = el.date.checked ? new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : "";
+      const final = compose(el.canvas, {
+        deg, caption: el.frame.checked ? el.caption.value.trim() : "", date: el.frame.checked ? date : "",
+        framed: el.frame.checked, makeCanvas: (w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h }),
+      });
+      const blob = await new Promise((res) => final.toBlob(res, "image/jpeg", 0.92));
+      const name = `scan-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.jpg`;
+      addToGallery(blob, name);
+      showPhoto(booth.gallery[0].url);
+      el.status.textContent = "Done!";
+      beep(1320, 160);
+      await save(blob, name);
+      if (el.print.checked) print(booth.gallery[0].url);
+      const every = Number(el.clean.value);
+      if (every && booth.sinceClean >= every) {
+        await wait(4000); // let the guest see their photo first
+        attention("clean");
+      }
+    } catch (e) {
+      booth.failures++;
+      booth.lastError = e.message;
+      el.status.textContent = e.name === "AbortError" ? "Cancelled." : "That didn't work. Try again!";
+      log(`booth error: ${e.stack || e.message}`);
+      if (/stuck|stayed busy|didn't confirm the abort/.test(e.message)) attention("stuck");
+      else if (!state.io) attention("disconnected");
+    } finally {
+      booth.busy = state.scanning = false;
+      el.go.disabled = false;
+      ctx.refresh();
+      updateOperator();
+    }
+  }
+
+  // ---- watching the scanner while idle: buttons, lamp, stuck ----
+
+  async function watch() {
+    while (booth.open) {
+      if (!booth.busy && state.io) {
+        try {
+          const now = Date.now();
+          const { button, busy, lamp } = await ctx.exclusive(async () => {
+            const io = state.io;
+            const s = await status(io);
+            const busy = Boolean(s[0] & 0x40);
+            const button = busy ? 0 : await pressedButton(io);
+            let lamp = null;
+            if (!busy && now - booth.lastLampCheck > LAMP_CHECK_MS) {
+              booth.lastLampCheck = now;
+              lamp = await lampIsOn(io);
+              if (!lamp) await lampOn(io);
+            }
+            return { button, busy, lamp };
+          });
+          if (lamp === false) log("lamp was off: switched it on to keep it warm");
+          if (busy) {
+            booth.busySince ||= now;
+            if (now - booth.busySince > STUCK_AFTER_MS && booth.attention !== "stuck") attention("stuck");
+          } else {
+            booth.busySince = 0;
+            if (booth.attention === "stuck" || booth.attention === "disconnected") attention(null);
+          }
+          if (button) {
+            log(`scanner button ${button} pressed`);
+            scan();
+          }
+        } catch (e) {
+          log(`watching the scanner: ${e.message}`);
+          await wait(2000);
+        }
+      }
+      await wait(300);
+    }
+  }
+
+  // ---- operator panel ----
+
+  function updateOperator() {
+    if (el.operator.hidden) return;
+    el.opStats.textContent = [
+      `${plural(booth.scans, "photo")} this session, ${plural(booth.failures, "failed scan")}`,
+      booth.lastError ? `last error: ${booth.lastError}` : "no errors",
+      `${booth.saved.length} saved${booth.dir ? ` to ${booth.dir.name}/` : " (no folder chosen)"}`,
+      `glass wiped ${plural(booth.sinceClean, "photo")} ago`,
+    ].join("\n");
+  }
+  function toggleOperator() {
+    el.operator.hidden = !el.operator.hidden;
+    updateOperator();
+  }
+  let taps = [];
+  el.corner.addEventListener("click", () => {
+    taps = [...taps.filter((t) => Date.now() - t < 1500), Date.now()];
+    if (taps.length >= 3) {
+      taps = [];
+      toggleOperator();
+    }
+  });
+  $("op-close").addEventListener("click", toggleOperator);
+  $("op-recalibrate").addEventListener("click", () => {
+    ctx.recalibrate();
+    log("operator: the next scan measures the levels and calibration again");
+    $("op-recalibrate").textContent = "Next scan recalibrates";
+  });
+  $("op-cleaned").addEventListener("click", () => {
+    booth.sinceClean = 0;
+    if (booth.attention === "clean") attention(null);
+    updateOperator();
+  });
+  $("op-delete").addEventListener("click", async () => {
+    if (!confirm(`Delete all ${booth.gallery.length} photos from this session${booth.saved.length ? `, including ${booth.saved.length} saved files` : ""}?`)) return;
+    for (const name of booth.saved) {
+      try {
+        await booth.dir.removeEntry(name);
+      } catch (e) {
+        log(`couldn't delete ${name}: ${e.message}`);
+      }
+    }
+    booth.saved = [];
+    for (const p of booth.gallery) URL.revokeObjectURL(p.url);
+    booth.gallery = [];
+    el.strip.replaceChildren();
+    el.photo.hidden = true;
+    el.canvas.hidden = true;
+    el.hint.hidden = false;
+    updateOperator();
+  });
+  $("op-leave").addEventListener("click", () => {
+    el.operator.hidden = true;
+    leave();
+  });
+
+  // ---- entering and leaving ----
+
+  el.start.addEventListener("click", async () => {
+    booth.open = true;
+    el.root.hidden = false;
+    document.body.style.overflow = "hidden";
+    el.hint.hidden = false;
+    el.status.textContent = "";
+    attention(state.io ? null : "disconnected");
+    try {
+      await el.root.requestFullscreen();
+    } catch { /* fullscreen refused: the overlay still covers the window */ }
+    keepAwake();
+    booth.lastLampCheck = 0; // warm the lamp now
+    watch();
+  });
+
+  function leave() {
+    if (booth.busy) return;
+    booth.open = false;
+    el.root.hidden = true;
+    document.body.style.overflow = "";
+    booth.wakeLock?.release().catch(() => {});
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+
+  el.go.addEventListener("click", scan);
+  el.exit.addEventListener("click", leave);
+  document.addEventListener("keydown", (e) => {
+    if (!booth.open) return;
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      scan();
+    } else if (e.key === "Escape") {
+      if (booth.busy) state.abort?.abort();
+      else if (!el.operator.hidden) toggleOperator();
+      else leave();
+    } else if (e.key === "o" || e.key === "O") {
+      toggleOperator();
+    }
+  });
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && booth.open && !booth.busy && el.operator.hidden) leave();
+  });
+
+  return { leave };
+}
+
+return { setupBooth };
 })();
 
 // ---- v500/firmware.js ----
-const __m4 = (() => {
+const __m6 = (() => {
 // Parse Epson's esfw7C.bin and upload it (see v500/firmware.py, PROTOCOL.md).
 // The V500 keeps no firmware in flash; the host uploads it on every power-on.
 // Users supply their own copy: Epson's licence forbids redistributing it.
 
-const { hex } = __m3;
+const { hex } = __m5;
 const ACK = 0x06;
 const STATUS = new Uint8Array([0x1b, 0x03]);
 const BEGIN_UPLOAD = new Uint8Array([0x1b, 0x06]);
@@ -446,7 +997,7 @@ return { FIRMWARE_LOADED, parseFirmware, status, isLoaded, upload };
 })();
 
 // ---- v500/raw.js ----
-const __m6 = (() => {
+const __m8 = (() => {
 // Turn the V500's raw image data into RGB (see v500/raw.py and PROTOCOL.md).
 //
 // Data comes in blocks, each followed by an 8-byte trailer holding its length.
@@ -454,7 +1005,7 @@ const __m6 = (() => {
 // by k lines and green lags blue by k, k = 5 x dpi / 200. Crop the leftmost
 // `width` pixels, then apply Epson's colour matrix, or the grey weights.
 
-const { concat } = __m3;
+const { concat } = __m5;
 const TRAILER = 8; // 02 <u24 LE block length> 00 00 80 00
 
 // From Epson's libsane-epkowa; out = M @ (r, g, b), truncated to 0..255.
@@ -574,7 +1125,7 @@ return { TRAILER, COLOR_MATRIX, GREY_WEIGHTS, lineShift, blocks, payload, Stream
 })();
 
 // ---- v500/calibration.js ----
-const __m8 = (() => {
+const __m10 = (() => {
 // Calibration values for a scan, from the scanner's reference reads
 // (see v500/calibration.py and PROTOCOL.md, "Calibration").
 //
@@ -702,7 +1253,7 @@ return { DARK_SMOOTHING, u16Samples, probeOffsets, param1e42, compute };
 })();
 
 // ---- v500/usblog.js ----
-const __m9 = (() => {
+const __m11 = (() => {
 // Read the transfer logs that tools/capture/usblog.c writes (see v500/usblog.py).
 //
 // File: "V5USBLOG", then records of
@@ -737,7 +1288,7 @@ return { parseUsblog };
 })();
 
 // ---- v500/replay.js ----
-const __m7 = (() => {
+const __m9 = (() => {
 // Scan without Epson's plugin, by replaying a template (see v500/replay.py).
 //
 // A template is a capture of Epson's driver making one scan. We send the same
@@ -747,11 +1298,11 @@ const __m7 = (() => {
 // how it is packed (image-pass `1e 41` bytes 11 and 15). Status polls are
 // polled properly instead of replayed.
 
-const { commandBytes, commandId, concat, hex, u16, u32 } = __m3;
-const calibration = __m8;
-const { abortScan } = __m2;
-const { lineShift, payload, StreamDecoder, TRAILER } = __m6;
-const { parseUsblog } = __m9;
+const { commandBytes, commandId, concat, hex, u16, u32 } = __m5;
+const calibration = __m10;
+const { abortScan } = __m4;
+const { lineShift, payload, StreamDecoder, TRAILER } = __m8;
+const { parseUsblog } = __m11;
 const POLL_READY = 0x1e04;
 const STATUS = 0x1b03;
 const BUSY = 0x40;
@@ -1065,13 +1616,13 @@ return { POLL_READY, STATUS, BUSY, CMD, group, params, replies, Template, Replay
 })();
 
 // ---- v500/geometry.js ----
-const __m5 = (() => {
+const __m7 = (() => {
 // Retarget a template to any scan area at its resolution (see v500/geometry.py
 // and PROTOCOL.md, "Scan geometry").
 
-const { setU16, setU32, u16, u32 } = __m3;
-const { lineShift } = __m6;
-const { CMD, params, Template } = __m7;
+const { setU16, setU32, u16, u32 } = __m5;
+const { lineShift } = __m8;
+const { CMD, params, Template } = __m9;
 const STEPS_PER_INCH = 2400;
 
 // Motor steps for `lines` scan lines. At 1600 dpi a line is 1.5 steps.
@@ -1243,7 +1794,7 @@ return { STEPS_PER_INCH, scanSteps, BLOCK_BYTES, RAW_QUANTUM, LINE_QUANTUM, USED
 })();
 
 // ---- v500/protocol.js ----
-const __m10 = (() => {
+const __m12 = (() => {
 // The whole command sequence for a scan, built from scratch: no capture of
 // Epson's driver needed. (See PROTOCOL.md, "Building a scan without a template".)
 //
@@ -1256,10 +1807,10 @@ const __m10 = (() => {
 // The area is then set by retarget() (geometry.js), the same code that
 // retargets captured templates.
 
-const { setU16, setU32 } = __m3;
-const { retarget, scanSteps } = __m5;
-const { lineShift } = __m6;
-const { CMD, POLL_READY, STATUS, Template } = __m7;
+const { setU16, setU32 } = __m5;
+const { retarget, scanSteps } = __m7;
+const { lineShift } = __m8;
+const { CMD, POLL_READY, STATUS, Template } = __m9;
 const ACK = new Uint8Array([0x06]);
 
 // Per-resolution settings: the line rate lo/hi of 2400 steps per inch, the
@@ -1478,7 +2029,7 @@ return { RESOLUTIONS, motor, MOVE_RAMP, gammaTable, ramp, build, SUPPORTED };
 })();
 
 // ---- v500/webusb.js ----
-const __m11 = (() => {
+const __m13 = (() => {
 // Bulk transport to the V500 over WebUSB (Chrome and Edge; see v500/usb.py).
 
 const VENDOR_ID = 0x04b8;
@@ -1586,12 +2137,12 @@ return { VENDOR_ID, PRODUCT_ID, WebUsbTransport };
 // The scanner page: connect over WebUSB, upload firmware, scan, paint rows live.
 
 const { findFirmware } = __m1;
-const { pressedButton } = __m2;
-const { parseFirmware, status, isLoaded, upload } = __m4;
-const { fromMm, fullBed, retarget } = __m5;
-const { build, SUPPORTED } = __m10;
-const { Replayer, Template } = __m7;
-const { WebUsbTransport } = __m11;
+const { setupBooth } = __m2;
+const { parseFirmware, status, isLoaded, upload } = __m6;
+const { fromMm, fullBed, retarget } = __m7;
+const { build, SUPPORTED } = __m12;
+const { Replayer, Template } = __m9;
+const { WebUsbTransport } = __m13;
 const $ = (id) => document.getElementById(id);
 const ui = {
   connect: $("connect"), device: $("device"), firmware: $("firmware"), firmwareName: $("firmware-name"),
@@ -1673,7 +2224,7 @@ function say(text, kind = "") {
 
 function refresh() {
   ui.scan.disabled = !state.io || state.scanning;
-  $("booth-start").disabled = !state.io || state.scanning;
+  $("booth-start").disabled = state.scanning; // the booth waits for the scanner by itself
   ui.connect.disabled = state.scanning;
   const dpi = Number(ui.dpi.value);
   const builtIn = SUPPORTED.includes(dpi);
@@ -1906,144 +2457,15 @@ ui.scan.addEventListener("click", async () => {
   }
 });
 
-// ---- booth mode ----
+// ---- booth mode (booth.js) ----
 
-const booth = {
-  el: $("booth"), canvas: $("booth-canvas"), count: $("booth-count"), hint: $("booth-hint"),
-  status: $("booth-status"), go: $("booth-go"), exit: $("booth-exit"), start: $("booth-start"),
-  rotate: $("booth-rotate"), countdown: $("booth-countdown"), folder: $("booth-folder"), folderName: $("booth-folder-name"),
-  dir: null, // a folder handle from showDirectoryPicker, if the user picked one
-  busy: false,
+const boothCtx = {
+  state, log, exclusive, refresh, performScan,
+  // forget the reused levels and calibration: the next scan measures again
+  recalibrate: () => (state.levels = state.calibration = null),
+  onConnection: () => {},
 };
-
-// A copy of `src` turned clockwise by `deg`, for saving upright.
-function turned(src, deg) {
-  if (!deg) return src;
-  const c = document.createElement("canvas");
-  const side = deg % 180 !== 0;
-  c.width = side ? src.height : src.width;
-  c.height = side ? src.width : src.height;
-  const ctx = c.getContext("2d");
-  ctx.translate(c.width / 2, c.height / 2);
-  ctx.rotate((deg * Math.PI) / 180);
-  ctx.drawImage(src, -src.width / 2, -src.height / 2);
-  return c;
-}
-
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function boothScan() {
-  if (booth.busy || state.scanning) return;
-  booth.busy = state.scanning = true;
-  booth.go.disabled = true;
-  refresh();
-  try {
-    for (let n = Number(booth.countdown.value); n > 0; n--) {
-      booth.hint.hidden = true;
-      booth.count.hidden = false;
-      booth.count.textContent = n;
-      await wait(1000);
-    }
-    booth.count.hidden = true;
-    booth.hint.hidden = true;
-    const deg = Number(booth.rotate.value);
-    booth.canvas.style.transform = deg ? `rotate(${deg}deg)` : "";
-    booth.canvas.classList.toggle("turned", deg % 180 !== 0);
-    const r = await performScan(booth.canvas, (text) => (booth.status.textContent = text === "Scanning…" ? "Hold still…" : text));
-    booth.status.textContent = "Done!";
-    log(`booth scan: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s`);
-    if (booth.dir) await savePhoto(turned(booth.canvas, deg));
-  } catch (e) {
-    booth.status.textContent = e.name === "AbortError" ? "Cancelled." : `Scan failed: ${e.message}`;
-    log(`error: ${e.stack || e.message}`);
-  } finally {
-    booth.busy = state.scanning = false;
-    booth.go.disabled = false;
-    refresh();
-  }
-}
-
-async function savePhoto(canvas) {
-  const name = `scan-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.jpg`;
-  try {
-    const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92));
-    const file = await booth.dir.getFileHandle(name, { create: true });
-    const w = await file.createWritable();
-    await w.write(blob);
-    await w.close();
-    log(`saved ${name}`);
-  } catch (e) {
-    log(`couldn't save ${name}: ${e.message}`);
-  }
-}
-
-booth.folder.addEventListener("click", async () => {
-  if (!window.showDirectoryPicker) {
-    booth.folderName.textContent = "this browser can't save to folders; use Save PNG";
-    return;
-  }
-  try {
-    booth.dir = await window.showDirectoryPicker({ mode: "readwrite" });
-    booth.folderName.textContent = `saving to ${booth.dir.name}/`;
-  } catch {
-    /* picker closed */
-  }
-});
-
-// While the booth is open and idle, the scanner's own buttons start a scan.
-async function pollButtons() {
-  while (!booth.el.hidden) {
-    if (!booth.busy && state.io) {
-      try {
-        const button = await exclusive(() => pressedButton(state.io));
-        if (button && !booth.el.hidden) {
-          log(`scanner button ${button} pressed`);
-          boothScan();
-        }
-      } catch (e) {
-        log(`button poll: ${e.message}`);
-        await wait(2000);
-      }
-    }
-    await wait(300);
-  }
-}
-
-booth.start.addEventListener("click", async () => {
-  booth.el.hidden = false;
-  pollButtons();
-  document.body.style.overflow = "hidden";
-  booth.hint.hidden = false;
-  booth.status.textContent = "";
-  try {
-    await booth.el.requestFullscreen();
-  } catch {
-    /* fullscreen refused: the overlay still covers the window */
-  }
-});
-
-function leaveBooth() {
-  if (booth.busy) return;
-  booth.el.hidden = true;
-  document.body.style.overflow = "";
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-}
-
-booth.go.addEventListener("click", boothScan);
-booth.exit.addEventListener("click", leaveBooth);
-document.addEventListener("keydown", (e) => {
-  if (booth.el.hidden) return;
-  if (e.key === " " || e.key === "Enter") {
-    e.preventDefault();
-    boothScan();
-  } else if (e.key === "Escape") {
-    if (booth.busy) state.abort?.abort();
-    else leaveBooth();
-  }
-});
-document.addEventListener("fullscreenchange", () => {
-  if (!document.fullscreenElement && !booth.el.hidden && !booth.busy) leaveBooth();
-});
+setupBooth(boothCtx);
 
 ui.save.addEventListener("click", () => {
   ui.canvas.toBlob((blob) => {
@@ -2067,6 +2489,19 @@ async function start() {
         state.io = null;
         ui.device.textContent = "Disconnected";
         refresh();
+        boothCtx.onConnection(false);
+      }
+    });
+    // plugged back in (or power-cycled): reconnect without a click, since
+    // this page was already allowed to use it
+    navigator.usb.addEventListener("connect", async (e) => {
+      if (state.io || e.device.vendorId !== 0x04b8 || e.device.productId !== 0x0130) return;
+      try {
+        await attach(await WebUsbTransport.open(e.device));
+        log("scanner reconnected");
+        boothCtx.onConnection(true);
+      } catch (err) {
+        log(`couldn't reconnect: ${err.message}`);
       }
     });
     try {
@@ -2162,9 +2597,9 @@ start();
       <progress id="progress" max="1" value="0" hidden></progress>
       <p id="status" class="status" role="status"></p>
       <h2><span class="n">4</span> Booth mode</h2>
-      <p class="muted small">Full screen, a big Scan button and a countdown. The scanner's own
-        buttons, Space or Enter (so a USB foot pedal) scan too; Escape cancels or leaves.
-        Uses the scan settings above.</p>
+      <p class="muted small">The page as the photo booth: full screen, a countdown, and the scanner's
+        own buttons, Space, Enter or a USB foot pedal to scan. Uses the scan settings above. In the
+        booth, press O (or tap the top-left corner three times) for the operator panel.</p>
       <div class="grid">
         <label>Turn the image <select id="booth-rotate">
           <option value="0">upright</option>
@@ -2177,13 +2612,31 @@ start();
           <option value="3" selected>3 s</option>
           <option value="5">5 s</option>
         </select></label>
+        <label>Look <select id="booth-effect"></select></label>
+        <label>Wipe-the-glass reminder <select id="booth-clean">
+          <option value="0">never</option>
+          <option value="10">every 10 photos</option>
+          <option value="20" selected>every 20 photos</option>
+          <option value="40">every 40 photos</option>
+        </select></label>
       </div>
+      <label class="check"><input id="booth-frame" type="checkbox" checked> White frame with a caption</label>
+      <div class="grid">
+        <label>Caption <input id="booth-caption" type="text" placeholder="e.g. Sam &amp; Alex, 2026" maxlength="60"></label>
+        <label class="check bottom"><input id="booth-date" type="checkbox" checked> Add the date</label>
+      </div>
+      <label class="check"><input id="booth-print-each" type="checkbox"> Print every photo
+        <span class="muted small">(silent with Chrome's <code>--kiosk-printing</code>)</span></label>
       <div class="row">
         <button id="booth-folder">Save photos to a folder…</button>
         <span id="booth-folder-name" class="muted small">not saving</span>
       </div>
       <div class="row">
-        <button id="booth-start" disabled>Start booth</button>
+        <button id="booth-slideshow">Open slideshow window</button>
+        <span class="muted small">for a second screen</span>
+      </div>
+      <div class="row">
+        <button id="booth-start" class="primary">Start booth</button>
       </div>
       <details>
         <summary>Log</summary>
@@ -2199,15 +2652,36 @@ start();
 
   <div id="booth" class="booth" hidden>
     <div class="booth-stage">
-      <canvas id="booth-canvas" width="0" height="0"></canvas>
+      <canvas id="booth-canvas" width="0" height="0" hidden></canvas>
+      <img id="booth-photo" alt="your scan" hidden>
       <div id="booth-count" class="booth-count" hidden></div>
-      <p id="booth-hint" class="booth-hint">Press your face to the glass, close your eyes, then tap Scan.</p>
+      <p id="booth-hint" class="booth-hint">Press your face gently to the glass,<br>close your eyes, and press Scan.</p>
+      <div id="booth-attention" class="booth-attention" hidden>
+        <h2 id="booth-attention-title"></h2>
+        <p id="booth-attention-text"></p>
+      </div>
+      <div id="booth-corner" class="booth-corner"></div>
     </div>
+    <div id="booth-strip" class="booth-strip"></div>
     <div class="booth-bar">
       <button id="booth-exit">Exit</button>
       <span id="booth-status" class="booth-status"></span>
       <button id="booth-go" class="primary booth-go">Scan</button>
     </div>
+    <div id="booth-operator" class="booth-operator" hidden>
+      <h2>Operator</h2>
+      <pre id="op-stats"></pre>
+      <div class="row">
+        <button id="op-recalibrate">Recalibrate next scan</button>
+        <button id="op-cleaned">Glass wiped</button>
+      </div>
+      <div class="row">
+        <button id="op-delete">Delete this session's photos…</button>
+        <button id="op-leave">Leave the booth</button>
+        <button id="op-close">Close</button>
+      </div>
+    </div>
+    <iframe id="booth-print" class="booth-print" title="print"></iframe>
   </div>
 </body>
 </html>

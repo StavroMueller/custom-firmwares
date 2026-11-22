@@ -80,10 +80,21 @@ if (q.has("auto") && scanner) {
   await wait(300);
   if (q.has("booth")) {
     document.getElementById("booth-rotate").value = q.get("booth") || "0";
+    for (const [param, id] of [["effect", "booth-effect"], ["caption", "booth-caption"], ["countdown", "booth-countdown"]]) {
+      if (q.has(param)) document.getElementById(id).value = q.get(param);
+    }
     document.getElementById("booth-start").click();
     await wait(300);
     if (q.has("button")) scanner.button = 1; // press the scanner's Start button
     else document.getElementById("booth-go").click();
+    if (q.has("operator")) {
+      await wait(20000);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "o" }));
+    }
+    if (q.has("unplug")) {
+      await wait(20000);
+      navigator.usb.dispatchEvent(Object.assign(new Event("disconnect"), { device }));
+    }
   } else {
     document.getElementById("scan").click();
   }

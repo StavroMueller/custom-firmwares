@@ -6,32 +6,57 @@ import { POLL_READY, replies, STATUS } from "../v500/replay.js";
 
 const ACK = 0x06;
 
-// Answers with a template's recorded replies, in order; polls say ready.
+// Answers with a template's recorded replies, command by command; polls say
+// ready. Commands that aren't next in the recording (button and lamp checks
+// between scans) get the answers of an idle scanner.
 // strict: the caller must ask for exactly the recorded size. Off, it behaves
 // like USB: a request for more gets what the scanner has (WebUSB asks for at
 // least a full packet).
 export class TemplateScanner {
   constructor(template, { strict = true } = {}) {
     this.strict = strict;
-    this.replies = template.groups.filter((g) => g.command !== POLL_READY && g.command !== STATUS).flatMap(replies);
+    this.expected = template.groups.filter((g) => g.command !== POLL_READY && g.command !== STATUS);
+    this.next = 0;
+    this.pending = null; // recorded replies of the command in progress
     this.writes = [];
     this.command = 0;
+    this.button = 0;
+    this.lamp = true;
+  }
+
+  get replies() {
+    return this.expected.slice(this.next).flatMap(replies).concat(this.pending ?? []);
   }
 
   async write(data) {
     this.writes.push(data.slice());
-    if (data.length === 2 && (data[0] === 0x1b || data[0] === 0x1e)) this.command = commandId(data);
+    if (data.length === 2 && (data[0] === 0x1b || data[0] === 0x1e)) {
+      this.command = commandId(data);
+      const g = this.expected[this.next];
+      if (g && g.command === this.command) {
+        this.pending = replies(g).slice();
+        this.next++;
+      } else {
+        this.pending = null;
+      }
+    }
   }
 
   async read(size) {
     if (this.command === POLL_READY) return new Uint8Array([0x01]);
     if (this.command === STATUS) return new Uint8Array([0x18, 0x81]);
-    if (this.command === 0x1e85) { // front-panel button: reported once
-      const b = this.button ?? 0;
-      this.button = 0;
-      return new Uint8Array([b]);
+    if (!this.pending) {
+      // not part of the recorded scan: answer like an idle scanner
+      if (this.command === 0x1e85) { // front-panel button: reported once
+        const b = this.button;
+        this.button = 0;
+        return new Uint8Array([b]);
+      }
+      if (this.command === 0x1ea1) return new Uint8Array([this.lamp ? 1 : 0]);
+      return size === 1 ? new Uint8Array([ACK]) : new Uint8Array(size);
     }
-    const r = this.replies.shift();
+    const r = this.pending.shift();
+    if (!r) throw new Error(`no recorded reply left for ${this.command.toString(16)}`);
     if (this.strict ? r.length !== size : r.length > size) throw new Error(`replay asked for ${size} bytes, template has ${r.length}`);
     return r;
   }

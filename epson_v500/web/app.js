@@ -1,7 +1,7 @@
 // The scanner page: connect over WebUSB, upload firmware, scan, paint rows live.
 
 import { findFirmware } from "./v500/bundle.js";
-import { pressedButton } from "./v500/device.js";
+import { setupBooth } from "./booth.js";
 import { parseFirmware, status, isLoaded, upload } from "./v500/firmware.js";
 import { fromMm, fullBed, retarget } from "./v500/geometry.js";
 import { build, SUPPORTED } from "./v500/protocol.js";
@@ -89,7 +89,7 @@ function say(text, kind = "") {
 
 function refresh() {
   ui.scan.disabled = !state.io || state.scanning;
-  $("booth-start").disabled = !state.io || state.scanning;
+  $("booth-start").disabled = state.scanning; // the booth waits for the scanner by itself
   ui.connect.disabled = state.scanning;
   const dpi = Number(ui.dpi.value);
   const builtIn = SUPPORTED.includes(dpi);
@@ -322,144 +322,15 @@ ui.scan.addEventListener("click", async () => {
   }
 });
 
-// ---- booth mode ----
+// ---- booth mode (booth.js) ----
 
-const booth = {
-  el: $("booth"), canvas: $("booth-canvas"), count: $("booth-count"), hint: $("booth-hint"),
-  status: $("booth-status"), go: $("booth-go"), exit: $("booth-exit"), start: $("booth-start"),
-  rotate: $("booth-rotate"), countdown: $("booth-countdown"), folder: $("booth-folder"), folderName: $("booth-folder-name"),
-  dir: null, // a folder handle from showDirectoryPicker, if the user picked one
-  busy: false,
+const boothCtx = {
+  state, log, exclusive, refresh, performScan,
+  // forget the reused levels and calibration: the next scan measures again
+  recalibrate: () => (state.levels = state.calibration = null),
+  onConnection: () => {},
 };
-
-// A copy of `src` turned clockwise by `deg`, for saving upright.
-function turned(src, deg) {
-  if (!deg) return src;
-  const c = document.createElement("canvas");
-  const side = deg % 180 !== 0;
-  c.width = side ? src.height : src.width;
-  c.height = side ? src.width : src.height;
-  const ctx = c.getContext("2d");
-  ctx.translate(c.width / 2, c.height / 2);
-  ctx.rotate((deg * Math.PI) / 180);
-  ctx.drawImage(src, -src.width / 2, -src.height / 2);
-  return c;
-}
-
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function boothScan() {
-  if (booth.busy || state.scanning) return;
-  booth.busy = state.scanning = true;
-  booth.go.disabled = true;
-  refresh();
-  try {
-    for (let n = Number(booth.countdown.value); n > 0; n--) {
-      booth.hint.hidden = true;
-      booth.count.hidden = false;
-      booth.count.textContent = n;
-      await wait(1000);
-    }
-    booth.count.hidden = true;
-    booth.hint.hidden = true;
-    const deg = Number(booth.rotate.value);
-    booth.canvas.style.transform = deg ? `rotate(${deg}deg)` : "";
-    booth.canvas.classList.toggle("turned", deg % 180 !== 0);
-    const r = await performScan(booth.canvas, (text) => (booth.status.textContent = text === "Scanning…" ? "Hold still…" : text));
-    booth.status.textContent = "Done!";
-    log(`booth scan: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s`);
-    if (booth.dir) await savePhoto(turned(booth.canvas, deg));
-  } catch (e) {
-    booth.status.textContent = e.name === "AbortError" ? "Cancelled." : `Scan failed: ${e.message}`;
-    log(`error: ${e.stack || e.message}`);
-  } finally {
-    booth.busy = state.scanning = false;
-    booth.go.disabled = false;
-    refresh();
-  }
-}
-
-async function savePhoto(canvas) {
-  const name = `scan-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.jpg`;
-  try {
-    const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92));
-    const file = await booth.dir.getFileHandle(name, { create: true });
-    const w = await file.createWritable();
-    await w.write(blob);
-    await w.close();
-    log(`saved ${name}`);
-  } catch (e) {
-    log(`couldn't save ${name}: ${e.message}`);
-  }
-}
-
-booth.folder.addEventListener("click", async () => {
-  if (!window.showDirectoryPicker) {
-    booth.folderName.textContent = "this browser can't save to folders; use Save PNG";
-    return;
-  }
-  try {
-    booth.dir = await window.showDirectoryPicker({ mode: "readwrite" });
-    booth.folderName.textContent = `saving to ${booth.dir.name}/`;
-  } catch {
-    /* picker closed */
-  }
-});
-
-// While the booth is open and idle, the scanner's own buttons start a scan.
-async function pollButtons() {
-  while (!booth.el.hidden) {
-    if (!booth.busy && state.io) {
-      try {
-        const button = await exclusive(() => pressedButton(state.io));
-        if (button && !booth.el.hidden) {
-          log(`scanner button ${button} pressed`);
-          boothScan();
-        }
-      } catch (e) {
-        log(`button poll: ${e.message}`);
-        await wait(2000);
-      }
-    }
-    await wait(300);
-  }
-}
-
-booth.start.addEventListener("click", async () => {
-  booth.el.hidden = false;
-  pollButtons();
-  document.body.style.overflow = "hidden";
-  booth.hint.hidden = false;
-  booth.status.textContent = "";
-  try {
-    await booth.el.requestFullscreen();
-  } catch {
-    /* fullscreen refused: the overlay still covers the window */
-  }
-});
-
-function leaveBooth() {
-  if (booth.busy) return;
-  booth.el.hidden = true;
-  document.body.style.overflow = "";
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-}
-
-booth.go.addEventListener("click", boothScan);
-booth.exit.addEventListener("click", leaveBooth);
-document.addEventListener("keydown", (e) => {
-  if (booth.el.hidden) return;
-  if (e.key === " " || e.key === "Enter") {
-    e.preventDefault();
-    boothScan();
-  } else if (e.key === "Escape") {
-    if (booth.busy) state.abort?.abort();
-    else leaveBooth();
-  }
-});
-document.addEventListener("fullscreenchange", () => {
-  if (!document.fullscreenElement && !booth.el.hidden && !booth.busy) leaveBooth();
-});
+setupBooth(boothCtx);
 
 ui.save.addEventListener("click", () => {
   ui.canvas.toBlob((blob) => {
@@ -483,6 +354,19 @@ async function start() {
         state.io = null;
         ui.device.textContent = "Disconnected";
         refresh();
+        boothCtx.onConnection(false);
+      }
+    });
+    // plugged back in (or power-cycled): reconnect without a click, since
+    // this page was already allowed to use it
+    navigator.usb.addEventListener("connect", async (e) => {
+      if (state.io || e.device.vendorId !== 0x04b8 || e.device.productId !== 0x0130) return;
+      try {
+        await attach(await WebUsbTransport.open(e.device));
+        log("scanner reconnected");
+        boothCtx.onConnection(true);
+      } catch (err) {
+        log(`couldn't reconnect: ${err.message}`);
       }
     });
     try {

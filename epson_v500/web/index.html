@@ -75,9 +75,9 @@
       <progress id="progress" max="1" value="0" hidden></progress>
       <p id="status" class="status" role="status"></p>
       <h2><span class="n">4</span> Booth mode</h2>
-      <p class="muted small">Full screen, a big Scan button and a countdown. The scanner's own
-        buttons, Space or Enter (so a USB foot pedal) scan too; Escape cancels or leaves.
-        Uses the scan settings above.</p>
+      <p class="muted small">The page as the photo booth: full screen, a countdown, and the scanner's
+        own buttons, Space, Enter or a USB foot pedal to scan. Uses the scan settings above. In the
+        booth, press O (or tap the top-left corner three times) for the operator panel.</p>
       <div class="grid">
         <label>Turn the image <select id="booth-rotate">
           <option value="0">upright</option>
@@ -90,13 +90,31 @@
           <option value="3" selected>3 s</option>
           <option value="5">5 s</option>
         </select></label>
+        <label>Look <select id="booth-effect"></select></label>
+        <label>Wipe-the-glass reminder <select id="booth-clean">
+          <option value="0">never</option>
+          <option value="10">every 10 photos</option>
+          <option value="20" selected>every 20 photos</option>
+          <option value="40">every 40 photos</option>
+        </select></label>
       </div>
+      <label class="check"><input id="booth-frame" type="checkbox" checked> White frame with a caption</label>
+      <div class="grid">
+        <label>Caption <input id="booth-caption" type="text" placeholder="e.g. Sam &amp; Alex, 2026" maxlength="60"></label>
+        <label class="check bottom"><input id="booth-date" type="checkbox" checked> Add the date</label>
+      </div>
+      <label class="check"><input id="booth-print-each" type="checkbox"> Print every photo
+        <span class="muted small">(silent with Chrome's <code>--kiosk-printing</code>)</span></label>
       <div class="row">
         <button id="booth-folder">Save photos to a folder…</button>
         <span id="booth-folder-name" class="muted small">not saving</span>
       </div>
       <div class="row">
-        <button id="booth-start" disabled>Start booth</button>
+        <button id="booth-slideshow">Open slideshow window</button>
+        <span class="muted small">for a second screen</span>
+      </div>
+      <div class="row">
+        <button id="booth-start" class="primary">Start booth</button>
       </div>
       <details>
         <summary>Log</summary>
@@ -112,15 +130,36 @@
 
   <div id="booth" class="booth" hidden>
     <div class="booth-stage">
-      <canvas id="booth-canvas" width="0" height="0"></canvas>
+      <canvas id="booth-canvas" width="0" height="0" hidden></canvas>
+      <img id="booth-photo" alt="your scan" hidden>
       <div id="booth-count" class="booth-count" hidden></div>
-      <p id="booth-hint" class="booth-hint">Press your face to the glass, close your eyes, then tap Scan.</p>
+      <p id="booth-hint" class="booth-hint">Press your face gently to the glass,<br>close your eyes, and press Scan.</p>
+      <div id="booth-attention" class="booth-attention" hidden>
+        <h2 id="booth-attention-title"></h2>
+        <p id="booth-attention-text"></p>
+      </div>
+      <div id="booth-corner" class="booth-corner"></div>
     </div>
+    <div id="booth-strip" class="booth-strip"></div>
     <div class="booth-bar">
       <button id="booth-exit">Exit</button>
       <span id="booth-status" class="booth-status"></span>
       <button id="booth-go" class="primary booth-go">Scan</button>
     </div>
+    <div id="booth-operator" class="booth-operator" hidden>
+      <h2>Operator</h2>
+      <pre id="op-stats"></pre>
+      <div class="row">
+        <button id="op-recalibrate">Recalibrate next scan</button>
+        <button id="op-cleaned">Glass wiped</button>
+      </div>
+      <div class="row">
+        <button id="op-delete">Delete this session's photos…</button>
+        <button id="op-leave">Leave the booth</button>
+        <button id="op-close">Close</button>
+      </div>
+    </div>
+    <iframe id="booth-print" class="booth-print" title="print"></iframe>
   </div>
 </body>
 </html>
