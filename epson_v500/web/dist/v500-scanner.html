@@ -729,7 +729,12 @@ const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 class Replayer {
   // io: {write(Uint8Array), read(size) -> Uint8Array}, both async.
   // onRows({top, rows, data, width, channels}) is called as image rows decode.
-  constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {}, pollTimeoutMs = 60000 } = {}) {
+  // levels: the analog levels a previous scan measured (its `afe`). With the
+  // lamp warm, reusing them skips the scanner's 2.3 s self-measurement; the
+  // white and dark references are still read fresh, so the image stays
+  // calibrated.
+  constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {},
+    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null } = {}) {
     this.t = template;
     this.io = io;
     this.sleep = sleep;
@@ -737,8 +742,10 @@ class Replayer {
     this.onRows = onRows;
     this.onProgress = onProgress;
     this.pollTimeoutMs = pollTimeoutMs;
+    this.pollIntervalMs = pollIntervalMs;
+    this.reuseLevels = Boolean(levels);
     this.reads = [];
-    this.afe = null;
+    this.afe = levels;
     this.probeOff = null;
     this.cal = null;
     this.count = new Map();
@@ -748,8 +755,11 @@ class Replayer {
 
   async run() {
     const groups = this.t.groups;
+    // the level measurement: from the first 1e 46 to the last 1e 92
+    const measure = [groups.findIndex((g) => g.command === 0x1e46), groups.findLastIndex((g) => g.command === CMD.AFE_READ)];
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
+      if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
       if (g.command === POLL_READY || g.command === STATUS) {
         while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
         if (g.command === POLL_READY) await this.pollReady();
@@ -860,7 +870,7 @@ class Replayer {
       const r = await this.io.read(1);
       if (r[0] === 0x01) return;
       if (Date.now() > deadline) throw new Error("scanner never reported ready (1e 04)");
-      await this.sleep(100);
+      await this.sleep(this.pollIntervalMs);
     }
   }
 
@@ -871,7 +881,7 @@ class Replayer {
       const r = await this.io.read(2);
       if (!(r[0] & BUSY)) return;
       if (Date.now() > deadline) throw new Error(`scanner stayed busy (status ${hex(r)})`);
-      await this.sleep(100);
+      await this.sleep(this.pollIntervalMs);
     }
   }
 
@@ -1373,6 +1383,7 @@ const state = {
   io: null,
   firmware: null, // parsed esfw7C.bin
   templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
+  levels: null, // {data, at}: analog levels measured by an earlier scan, reused while fresh
   scanning: false,
 };
 
@@ -1435,8 +1446,14 @@ function refresh() {
 
 // ---- scanner ----
 
+// Reusing the last measured analog levels skips the scanner's 2.2 s
+// self-measurement (first rows after 3.1 s instead of 5.3 s, same image
+// quality). Measure again after a power cycle and every 10 minutes.
+const LEVELS_FRESH_MS = 10 * 60 * 1000;
+
 async function attach(io) {
   state.io = io;
+  state.levels = null;
   try {
     const s = await status(io);
     ui.device.textContent = `${io.name}: ${isLoaded(s) ? "firmware running" : "needs firmware"}`;
@@ -1567,6 +1584,7 @@ ui.scan.addEventListener("click", async () => {
       if (!state.firmware) throw new Error("The scanner needs its firmware: pick your esfw7C.bin first.");
       say("Uploading firmware…");
       await upload(state.firmware, io);
+      state.levels = null; // power-cycled: measure again
       log(`firmware uploaded: ${state.firmware.ident}`);
       ui.device.textContent = `${io.name}: firmware running`;
     }
@@ -1586,7 +1604,10 @@ ui.scan.addEventListener("click", async () => {
     say("Warming up and calibrating…");
     const started = performance.now();
     let imaging = false;
+    const levels = state.levels && Date.now() - state.levels.at < LEVELS_FRESH_MS ? state.levels.data : null;
+    if (levels) log("reusing the analog levels measured earlier");
     const replayer = new Replayer(t, io, {
+      levels,
       log,
       onRows: (r) => {
         if (!imaging) {
@@ -1601,6 +1622,7 @@ ui.scan.addEventListener("click", async () => {
       },
     });
     await replayer.run();
+    if (!levels) state.levels = { data: replayer.afe, at: Date.now() };
     ui.progress.value = 1;
     say(`Done: ${t.width} x ${t.height} px in ${((performance.now() - started) / 1000).toFixed(1)} s.`, "ok");
     ui.save.disabled = false;

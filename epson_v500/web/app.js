@@ -21,6 +21,7 @@ const state = {
   io: null,
   firmware: null, // parsed esfw7C.bin
   templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
+  levels: null, // {data, at}: analog levels measured by an earlier scan, reused while fresh
   scanning: false,
 };
 
@@ -83,8 +84,14 @@ function refresh() {
 
 // ---- scanner ----
 
+// Reusing the last measured analog levels skips the scanner's 2.2 s
+// self-measurement (first rows after 3.1 s instead of 5.3 s, same image
+// quality). Measure again after a power cycle and every 10 minutes.
+const LEVELS_FRESH_MS = 10 * 60 * 1000;
+
 async function attach(io) {
   state.io = io;
+  state.levels = null;
   try {
     const s = await status(io);
     ui.device.textContent = `${io.name}: ${isLoaded(s) ? "firmware running" : "needs firmware"}`;
@@ -215,6 +222,7 @@ ui.scan.addEventListener("click", async () => {
       if (!state.firmware) throw new Error("The scanner needs its firmware: pick your esfw7C.bin first.");
       say("Uploading firmware…");
       await upload(state.firmware, io);
+      state.levels = null; // power-cycled: measure again
       log(`firmware uploaded: ${state.firmware.ident}`);
       ui.device.textContent = `${io.name}: firmware running`;
     }
@@ -234,7 +242,10 @@ ui.scan.addEventListener("click", async () => {
     say("Warming up and calibrating…");
     const started = performance.now();
     let imaging = false;
+    const levels = state.levels && Date.now() - state.levels.at < LEVELS_FRESH_MS ? state.levels.data : null;
+    if (levels) log("reusing the analog levels measured earlier");
     const replayer = new Replayer(t, io, {
+      levels,
       log,
       onRows: (r) => {
         if (!imaging) {
@@ -249,6 +260,7 @@ ui.scan.addEventListener("click", async () => {
       },
     });
     await replayer.run();
+    if (!levels) state.levels = { data: replayer.afe, at: Date.now() };
     ui.progress.value = 1;
     say(`Done: ${t.width} x ${t.height} px in ${((performance.now() - started) / 1000).toFixed(1)} s.`, "ok");
     ui.save.disabled = false;

@@ -76,7 +76,12 @@ const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 export class Replayer {
   // io: {write(Uint8Array), read(size) -> Uint8Array}, both async.
   // onRows({top, rows, data, width, channels}) is called as image rows decode.
-  constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {}, pollTimeoutMs = 60000 } = {}) {
+  // levels: the analog levels a previous scan measured (its `afe`). With the
+  // lamp warm, reusing them skips the scanner's 2.3 s self-measurement; the
+  // white and dark references are still read fresh, so the image stays
+  // calibrated.
+  constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {},
+    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null } = {}) {
     this.t = template;
     this.io = io;
     this.sleep = sleep;
@@ -84,8 +89,10 @@ export class Replayer {
     this.onRows = onRows;
     this.onProgress = onProgress;
     this.pollTimeoutMs = pollTimeoutMs;
+    this.pollIntervalMs = pollIntervalMs;
+    this.reuseLevels = Boolean(levels);
     this.reads = [];
-    this.afe = null;
+    this.afe = levels;
     this.probeOff = null;
     this.cal = null;
     this.count = new Map();
@@ -95,8 +102,11 @@ export class Replayer {
 
   async run() {
     const groups = this.t.groups;
+    // the level measurement: from the first 1e 46 to the last 1e 92
+    const measure = [groups.findIndex((g) => g.command === 0x1e46), groups.findLastIndex((g) => g.command === CMD.AFE_READ)];
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
+      if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
       if (g.command === POLL_READY || g.command === STATUS) {
         while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
         if (g.command === POLL_READY) await this.pollReady();
@@ -207,7 +217,7 @@ export class Replayer {
       const r = await this.io.read(1);
       if (r[0] === 0x01) return;
       if (Date.now() > deadline) throw new Error("scanner never reported ready (1e 04)");
-      await this.sleep(100);
+      await this.sleep(this.pollIntervalMs);
     }
   }
 
@@ -218,7 +228,7 @@ export class Replayer {
       const r = await this.io.read(2);
       if (!(r[0] & BUSY)) return;
       if (Date.now() > deadline) throw new Error(`scanner stayed busy (status ${hex(r)})`);
-      await this.sleep(100);
+      await this.sleep(this.pollIntervalMs);
     }
   }
 
