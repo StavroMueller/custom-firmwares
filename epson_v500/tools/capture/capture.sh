@@ -39,6 +39,7 @@ read -r BUS DEV < <(lsusb -d 04b8:0130 | awk '{print $2, substr($4, 1, 3)}')
 [ -n "${BUS:-}" ] || { echo "scanner 04b8:0130 not on USB" >&2; exit 1; }
 modprobe usbmon
 mkdir -p "$OUT"
+[ -n "${SUDO_USER:-}" ] && trap 'rm -rf "$ctx"; chown -R "$SUDO_USER:" "$OUT"' EXIT
 echo "scanner at bus $BUS device $DEV; writing to $OUT"
 
 step() {
@@ -48,16 +49,15 @@ step() {
     sleep 1
     local rc=0
     docker run --rm --device "/dev/bus/usb/$BUS/$DEV" -v "$OUT:/out" \
-        -e SANE_DEBUG_EPKOWA=32 "$IMAGE" "$@" >"$OUT/$name.out" 2>"$OUT/$name.log" || rc=$?
+        -e SANE_DEBUG_EPKOWA=128 -e SANE_DEBUG_DLL=4 "$IMAGE" "$@" >"$OUT/$name.out" 2>"$OUT/$name.log" || rc=$?
     sleep 1
     kill "$pid"; wait "$pid" 2>/dev/null || true
+    echo "$rc" >"$OUT/$name.exit"
     echo "$name: exit $rc, $(stat -c %s "$OUT/$name.pcap") bytes captured"
-    return $rc
 }
 
 step 01-list list
 step 02-scan-75dpi 75 02-scan-75dpi.png
 step 03-scan-300dpi 300 03-scan-300dpi.png
 
-[ -n "${SUDO_USER:-}" ] && chown -R "$SUDO_USER:" "$OUT"
 echo "done: $OUT"
