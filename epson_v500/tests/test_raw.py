@@ -6,16 +6,30 @@ import pytest
 from v500 import raw
 
 
-def chunked(data: bytes, size: int) -> list[bytes]:
-    parts = [data[i:i + size] for i in range(0, len(data), size)]
-    trailers = [b"\x02\x00\xb4\x00\x00\x00\x80\x00"] * (len(parts) - 1) + [b"\x02\x80\x70\x00\x00\x00\x80\x00"]
-    return [p + t for p, t in zip(parts, trailers)]
+def trailer(length: int) -> bytes:
+    return b"\x02" + length.to_bytes(3, "little") + b"\x00\x00\x80\x00"
 
 
-def test_payload_drops_trailers_and_marks_last_chunk():
-    chunks = chunked(bytes(range(200)) * 10, 700)
-    assert raw.payload(chunks) == bytes(range(200)) * 10
-    assert [raw.is_last(c) for c in chunks] == [False, False, True]
+def test_blocks_are_split_by_their_trailers():
+    # The real trailers seen: 46,080 and 28,800 bytes.
+    assert trailer(46080) == bytes.fromhex("02 00 b4 00 00 00 80 00")
+    assert trailer(28800) == bytes.fromhex("02 80 70 00 00 00 80 00")
+    a, b = bytes(range(256)) * 3, b"\xaa" * 100
+    reads = [a + trailer(len(a)), b + trailer(len(b))]
+    assert raw.blocks(reads) == [a, b]
+    assert raw.payload(reads) == a + b
+
+
+def test_a_block_can_span_several_reads():
+    block = bytes(range(256)) * 40
+    stream = block + trailer(len(block))
+    reads = [stream[i:i + 1000] for i in range(0, len(stream), 1000)]
+    assert raw.blocks(reads) == [block]
+
+
+def test_bad_trailer_is_an_error():
+    with pytest.raises(ValueError):
+        raw.blocks([b"\x00" * 50])
 
 
 def test_decode_undoes_the_line_shift_and_crops():

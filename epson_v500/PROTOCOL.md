@@ -131,8 +131,10 @@ identical in colour and in grey. At 400 and 800 dpi Epson also smooths the
 image slightly (roughly a cross-shaped blur, centre weight 0.64), so ours is
 a little sharper and differs by a few levels.
 
-- Each `1e 47` bulk read ends in an 8-byte trailer, e.g.
-  `02 00 b4 00 00 00 80 00`. Bit 0x80 of byte 1 is set on the last read.
+- Data comes in blocks, each followed by an 8-byte trailer
+  `02 <u24 LE length> 00 00 80 00`, e.g. `02 00 b4 00 ...` after 46,080
+  bytes. A block can span several USB reads (the 983,040-byte white
+  reference arrives in 20 reads with one trailer at the end).
 - After dropping trailers: lines of RGB pixels, 8 bits, interleaved, in
   colour **and** in grey mode. The line count is in `1e 41` (below).
 - Line shift: a spot on the glass reaches blue first, green `k` lines later
@@ -159,6 +161,55 @@ B' = -0.01   R - 0.2503 G + 1.2603 B
 So the scanner already applies shading correction and the tables uploaded
 with `1e 84`. An open driver has to compute those tables itself (next
 section).
+
+## Calibration
+
+Implemented in `v500/calibration.py`; checked against Epson's values on seven
+scans (`tests/test_calibration.py`).
+
+Before each scan the driver makes three 16-bit RGB reference reads. Their
+width is the sensor window from `1e 41` (bytes 2-3 minus bytes 0-1; 5,120 for
+the full bed, 2,048 for a 60 mm region at 200 dpi), 6 bytes per pixel:
+
+| Read | Size | Conditions | Use |
+|---|---|---|---|
+| dark probe | 16 px x 4 lines, sensor pixels 21-37 | `1e 42` all zero | mean per colour -> offsets in the next `1e 42` |
+| white | window x 32 lines | after a 51-step move, offsets applied | per-pixel white level |
+| dark | window x 16 lines | after `1e a2 00` (lamp off), `1e 42` zero | final offsets |
+
+Then the last `1e 42` and the shading table:
+
+- **offsets** (bytes 6-17, each colour twice): the dark read's mean, minus
+  about 11.
+- **base** (bytes 0-5, u16 per colour): roughly the dimmest used pixel's
+  white level, plus about 165, converted to the final offsets.
+- **shading table** (`1e 84` type 06): u16 per sensor pixel per colour,
+  interleaved R G B. Entry = `scale x (white[x] - base + ~190)`, in the
+  white read's units. `scale` is one power of two for all colours, the
+  largest that keeps every entry under 65,536: 1 for the full bed, 4 for the
+  regions captured. Entries for sensor pixels the scan doesn't use are 0.
+
+So the scanner rebuilds each pixel's white level as base + entry / scale.
+How it learns `scale` is not known; nothing in the captures changes with it.
+
+Our values land within sensor noise of Epson's: base within 150, offsets
+within 5, table entries within about 110 of ~30,000 on average. Epson's
+table is a little smoother than a 32-line mean, so it may average more data.
+
+The other uploaded tables are not calibration and are replayed as captured:
+
+- type `02`, 4,096 u16 per colour: gamma 1.8 on 12 bits,
+  `floor(4096 x (x / 4095)^(1/1.8))` clipped to 4,095, 96% exact, the rest
+  off by one.
+- type `05`: motor acceleration ramps.
+- type `07` and `1e 21`, `1e 87`: unknown.
+
+## Scanning without Epson's plugin
+
+`v500/replay.py` replays a capture of Epson's driver as a template, with the
+analog levels, offsets, base and shading table computed live (above), and
+status polls done properly. Against a simulated scanner it reproduces all
+seven captured scans exactly (`tests/test_replay.py`).
 
 ## The `1e` commands in a scan, in order
 

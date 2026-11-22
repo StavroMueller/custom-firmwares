@@ -6,7 +6,8 @@ grey. At 400 and 800 dpi Epson also smooths the image slightly; we don't, so
 there our output differs by a few levels.
 
 The pipeline:
-1. Each bulk read ends in an 8-byte trailer; drop it.
+1. The data comes in blocks, each followed by an 8-byte trailer that holds
+   the block's length; drop the trailers.
 2. The rest is lines of `raw_width` RGB pixels, 8 bits per sample,
    interleaved R G B.
    Grey scans arrive as RGB too.
@@ -23,8 +24,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-TRAILER = 8
-LAST_CHUNK = 0x80  # bit in trailer byte 1, set on the final read of a block
+TRAILER = 8  # 02 <u24 LE block length> 00 00 80 00
 
 # From Epson's libsane-epkowa (offset 0x3ee70), out = M @ (r, g, b).
 # Rows sum to 1, so greys stay grey.
@@ -44,18 +44,31 @@ def line_shift(dpi: int) -> tuple[int, int, int]:
     return (2 * k, k, 0)
 
 
-def payload(chunks: Iterable[bytes]) -> bytes:
-    """Join the data of one `1e 47` block, without the per-read trailers."""
-    parts = []
-    for chunk in chunks:
-        if len(chunk) < TRAILER:
-            raise ValueError(f"read of {len(chunk)} bytes is shorter than its trailer")
-        parts.append(chunk[:-TRAILER])
-    return b"".join(parts)
+def blocks(reads: Iterable[bytes]) -> list[bytes]:
+    """Split the bulk reads after one `1e 47` into data blocks.
+
+    Each block is followed by a trailer giving its length. A block can span
+    several USB reads, so the reads are joined and walked from the end.
+    """
+    data = b"".join(reads)
+    out = []
+    end = len(data)
+    while end > 0:
+        trailer = data[end - TRAILER:end]
+        if len(trailer) < TRAILER or trailer[0] != 0x02:
+            raise ValueError(f"no block trailer before byte {end}: {trailer.hex(' ')}")
+        length = int.from_bytes(trailer[1:4], "little")
+        start = end - TRAILER - length
+        if start < 0:
+            raise ValueError(f"trailer claims {length} bytes, only {end - TRAILER} left")
+        out.append(data[start:end - TRAILER])
+        end = start
+    return out[::-1]
 
 
-def is_last(chunk: bytes) -> bool:
-    return bool(chunk[-TRAILER + 1] & LAST_CHUNK)
+def payload(reads: Iterable[bytes]) -> bytes:
+    """The data of one `1e 47` transfer, without block trailers."""
+    return b"".join(blocks(reads))
 
 
 def decode(data: bytes, width: int, height: int, dpi: int = 200, grey: bool = False,
