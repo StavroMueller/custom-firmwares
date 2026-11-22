@@ -54,6 +54,8 @@ test("flat dark leaves 5 bits for dark; white shift is the smallest that fits", 
 test("mm to pixels matches Epson's rounding", () => {
   assert.deepEqual(fromMm(200, 20, 30, 60, 40), { x: 157, y: 236, width: 472, height: 314 });
   assert.deepEqual(fullBed(200), { x: 0, y: 0, width: 1696, height: 2339 });
+  assert.deepEqual(fromMm(400, 20, 30, 60, 40), { x: 315, y: 472, width: 944, height: 629 });
+  assert.deepEqual(fromMm(800, 20, 30, 60, 40), { x: 630, y: 945, width: 1888, height: 1259 });
 });
 
 test("firmware upload talks the protocol", async () => {

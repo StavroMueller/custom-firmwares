@@ -1,7 +1,9 @@
 // The scanner page: connect over WebUSB, upload firmware, scan, paint rows live.
 
+import { findFirmware } from "./v500/bundle.js";
 import { parseFirmware, status, isLoaded, upload } from "./v500/firmware.js";
 import { fromMm, fullBed, retarget } from "./v500/geometry.js";
+import { build, SUPPORTED } from "./v500/protocol.js";
 import { Replayer, Template } from "./v500/replay.js";
 import { WebUsbTransport } from "./v500/webusb.js";
 
@@ -9,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   connect: $("connect"), device: $("device"), firmware: $("firmware"), firmwareName: $("firmware-name"),
   templates: $("templates"), templatesList: $("templates-list"), forget: $("forget"),
-  dpi: $("dpi"), preset: $("area-preset"), areaMm: $("area-mm"),
+  dpi: $("dpi"), mode: $("mode"), preset: $("area-preset"), areaMm: $("area-mm"),
   left: $("left"), top: $("top"), width: $("width"), height: $("height"),
   scan: $("scan"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
   canvas: $("canvas"), placeholder: $("placeholder"), unsupported: $("unsupported"),
@@ -18,7 +20,7 @@ const ui = {
 const state = {
   io: null,
   firmware: null, // parsed esfw7C.bin
-  templates: new Map(), // dpi -> Template (colour, 8-bit)
+  templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
   scanning: false,
 };
 
@@ -68,10 +70,13 @@ function say(text, kind = "") {
 }
 
 function refresh() {
-  const ready = state.io && state.templates.size && !state.scanning;
-  ui.scan.disabled = !ready;
+  ui.scan.disabled = !state.io || state.scanning;
   ui.connect.disabled = state.scanning;
-  for (const el of [ui.firmware, ui.templates, ui.dpi, ui.preset, ui.left, ui.top, ui.width, ui.height, ui.forget]) {
+  const dpi = Number(ui.dpi.value);
+  const builtIn = SUPPORTED.includes(dpi);
+  ui.mode.querySelector('[value="grey"]').disabled = !builtIn && !state.templates.get(dpi)?.grey;
+  if (!builtIn) ui.mode.value = state.templates.get(dpi)?.grey ? "grey" : "colour";
+  for (const el of [ui.firmware, ui.templates, ui.dpi, ui.mode, ui.preset, ui.left, ui.top, ui.width, ui.height, ui.forget]) {
     el.disabled = state.scanning;
   }
 }
@@ -105,7 +110,7 @@ ui.connect.addEventListener("click", async () => {
 
 async function useFirmware(name, data) {
   state.firmware = parseFirmware(data);
-  ui.firmwareName.textContent = `${name}: ${state.firmware.ident}`;
+  ui.firmwareName.textContent = `${state.firmware.ident} (from ${name})`;
 }
 
 function addTemplate(name, data) {
@@ -118,18 +123,20 @@ function addTemplate(name, data) {
   if (t.deep) return `${name}: 16-bit, skipped (16-bit scans hang the scanner)`;
   if (t.xres !== t.yres) return `${name}: unequal x and y resolution, skipped`;
   const have = state.templates.get(t.yres);
+  if (SUPPORTED.includes(t.yres)) return `${name}: ${t.yres} dpi is built in, template not needed`;
   if (!have || (have.grey && !t.grey)) state.templates.set(t.yres, t);
   return null;
 }
 
 function showTemplates(notes = []) {
-  const dpis = [...state.templates.keys()].sort((a, b) => a - b);
-  ui.templatesList.textContent = dpis.length
-    ? dpis.map((d) => `${d} dpi ${state.templates.get(d).grey ? "grey" : "colour"}`).join(", ")
+  const extra = [...state.templates.keys()].sort((a, b) => a - b);
+  ui.templatesList.textContent = extra.length
+    ? extra.map((d) => `${d} dpi ${state.templates.get(d).grey ? "grey" : "colour"}`).join(", ")
     : "none";
   if (notes.length) log(notes.join("\n"));
-  const keep = Number(ui.dpi.value);
-  ui.dpi.replaceChildren(...dpis.map((d) => new Option(`${d} dpi`, d, false, d === keep)));
+  const keep = Number(ui.dpi.value) || SUPPORTED[0];
+  const dpis = [...new Set([...SUPPORTED, ...extra])].sort((a, b) => a - b);
+  ui.dpi.replaceChildren(...dpis.map((d) => new Option(`${d} dpi${SUPPORTED.includes(d) ? "" : " (template)"}`, d, false, d === keep)));
   refresh();
 }
 
@@ -137,10 +144,11 @@ ui.firmware.addEventListener("change", async () => {
   const f = ui.firmware.files[0];
   if (!f) return;
   try {
-    const data = await f.arrayBuffer();
-    await useFirmware(f.name, data);
-    await store("put", { name: f.name, data }, "firmware");
-    say("Firmware file ready.", "ok");
+    say("Reading the firmware…");
+    const data = await findFirmware(await f.arrayBuffer());
+    await useFirmware(f.name, data.buffer);
+    await store("put", { name: f.name, data: data.buffer }, "firmware");
+    say("Firmware ready.", "ok");
   } catch (e) {
     say(e.message, "bad");
   }
@@ -166,6 +174,8 @@ ui.forget.addEventListener("click", async () => {
   say("Stored files forgotten.");
 });
 
+ui.dpi.addEventListener("change", refresh);
+
 ui.preset.addEventListener("change", () => {
   ui.areaMm.hidden = ui.preset.value !== "custom";
 });
@@ -188,7 +198,7 @@ function paint(ctx, { top, rows, data, width, channels }) {
 ui.scan.addEventListener("click", async () => {
   const dpi = Number(ui.dpi.value);
   const template = state.templates.get(dpi);
-  if (!template || !state.io) return;
+  if (!state.io || (!SUPPORTED.includes(dpi) && !template)) return;
   state.scanning = true;
   refresh();
   ui.save.disabled = true;
@@ -206,8 +216,8 @@ ui.scan.addEventListener("click", async () => {
     const area = ui.preset.value === "full"
       ? fullBed(dpi)
       : fromMm(dpi, +ui.left.value, +ui.top.value, +ui.width.value, +ui.height.value);
-    const t = retarget(template, area);
-    log(`scan: ${t.width} x ${t.height} px at ${dpi} dpi from ${template.name}`);
+    const t = SUPPORTED.includes(dpi) ? build(dpi, area, { grey: ui.mode.value === "grey" }) : retarget(template, area);
+    log(`scan: ${t.width} x ${t.height} px at ${dpi} dpi, ${t.grey ? "grey" : "colour"}, from ${t.name}`);
 
     ui.canvas.width = t.width;
     ui.canvas.height = t.height;

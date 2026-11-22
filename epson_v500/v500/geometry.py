@@ -8,8 +8,9 @@ measured from captures of Epson's driver at 200, 400 and 800 dpi
 - `1e 57`: x, y, width and height in pixels.
 - `1e 41`, the sensor window: bytes 0-3 are the start and end in sensor
   units. One pixel is `ratio` sensor units: 8/3 at 200 dpi, 4/3 at 400 and 1
-  at 800, read off the template. When `ratio` isn't 1, Epson rounds the raw
-  line up to a multiple of 384 pixels. The image pass also gives the line
+  at 800, read off the template. The raw line is rounded up to a multiple of
+  384 pixels when `ratio` isn't 1 (Epson's rule), and of 32 when it is: a
+  1,889 px line at 800 dpi hung the scanner. The image pass also gives the line
   count (bytes 4-5) and how many lines fit in one 51,200-byte block (byte 18).
 - The reference reads and the shading table are window-sized.
 - `1e 01`: a move covers its step count plus twice its ramp length. The
@@ -39,6 +40,7 @@ from .replay import Group, Template
 STEPS_PER_INCH = 2400
 BLOCK_BYTES = 51200      # Epson reads in chunks of this size; image blocks fit in it
 RAW_QUANTUM = 384        # raw line widths when the sensor runs faster than the scan
+LINE_QUANTUM = 32        # otherwise: every width Epson sent at 800 dpi is a multiple of 32
 USED_MARGIN = 3          # extra sensor pixels Epson's shading table covers
 BED_IN = 8.48           # the scanner's maximum width (1e 53 at power-on: 848 px at 100 dpi)
 BED_MM = 297.18         # and the driver's maximum height
@@ -57,9 +59,12 @@ class Region:
 
     @classmethod
     def from_mm(cls, dpi: int, left: float, top: float, width: float, height: float) -> "Region":
-        # through SANE's fixed point (1/65536 mm), as Epson's driver gets them
-        px = [math.floor(math.floor(v * 65536) / 65536 / 25.4 * dpi) for v in (left, top, width, height)]
-        return cls(*px)
+        # through SANE's fixed point (1/65536 mm), as Epson's driver gets them;
+        # Epson rounds the offsets, truncates the height and the width to a
+        # multiple of 8 (60 mm at 800 dpi: 1,888 px, not 1,889)
+        exact = [math.floor(v * 65536) / 65536 / 25.4 * dpi for v in (left, top, width, height)]
+        return cls(math.floor(exact[0] + 0.5), math.floor(exact[1] + 0.5),
+                   math.floor(exact[2]) // 8 * 8, math.floor(exact[3]))
 
     @classmethod
     def full_bed(cls, dpi: int) -> "Region":
@@ -87,7 +92,8 @@ def retarget(t: Template, area: Region) -> Template:
     ratio = window_t / raw_w_t
     origin = start_t - round(tx * ratio)
 
-    raw_w = area.width if ratio == 1 else math.ceil(area.width / RAW_QUANTUM) * RAW_QUANTUM
+    quantum = LINE_QUANTUM if ratio == 1 else RAW_QUANTUM
+    raw_w = math.ceil(area.width / quantum) * quantum      # the host crops the padding
     window = round(raw_w * ratio)
     start = origin + round(area.x * ratio)
     crop_x = 0

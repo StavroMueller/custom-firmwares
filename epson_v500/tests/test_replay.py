@@ -147,9 +147,9 @@ def test_booth_backend_scans_through_a_template(tmp_path):
     write_template(tmp_path / "t.usblog")
     scanner = replay.ReplayScanner.from_dir(tmp_path)
     scanner.open_transport = lambda: GeometryScanner(ratio=1)
-    scan = scanner.scan(ScanSettings(dpi=200, area_mm=(1, 2, 0.5, 0.4)))   # 3 x 3 px
+    scan = scanner.scan(ScanSettings(dpi=200, area_mm=(1, 2, 1.1, 0.4)))   # 8 x 3 px
     strips = list(scan.strips)
-    assert (scan.width, scan.height) == (3, 3)
-    assert sum(s.shape[0] for s in strips) == 3 and strips[0].shape[1:] == (3, 3)
+    assert (scan.width, scan.height) == (8, 3)
+    assert sum(s.shape[0] for s in strips) == 3 and strips[0].shape[1:] == (8, 3)
     with pytest.raises(ValueError, match="no template for 400"):
         scanner.scan(ScanSettings(dpi=400))

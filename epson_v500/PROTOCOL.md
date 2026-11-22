@@ -245,6 +245,47 @@ the other captures, and on the real scanner.
   rounded down to even. Byte 29 is the gamma setting (4).
 - Epson's full bed is 1,696 x 2,339 px at 200 dpi (8.48 x 11.7 in).
 
+## Building a scan without a template
+
+`web/v500/protocol.js` builds the whole sequence from scratch at 200, 400
+and 800 dpi, colour or grey. It rebuilds every capture exactly, apart from
+the values measured live (`web/test/protocol.test.js`), and it scans
+correctly on the real scanner at 200 and 400 dpi.
+
+Every capture sends the same 93 commands in the same order (repeated polls
+collapsed). Almost all parameters are fixed. The tables are computed:
+
+- **gamma** (`1e 84` type `02`): `floor(65535 x (x / 4095)^(1/1.8)) >> 4`,
+  exact for all 4,096 entries.
+- **motor ramps** (type `05`): step intervals going from `start` down to
+  `cruise` over `n` entries, `max(cruise, floor(start / sqrt(1 + a i)))`
+  with `a = ((start / cruise)^2 - 1) / (n - 1)`. This is within 4 timer
+  ticks of Epson's tables. Move to the area: 2500 to 160 over 512. Scan:
+  2500 to 320 over 512 at 200 dpi, 1249 to 272 over 512 at 400 (first 256
+  used), and a constant 112 at 800.
+- **type `07`**: constant, u16 pairs `(0, 0) (40, 0x31c0) (200, 0x31c0)
+  (400, 0x1000)`, then `ff`.
+
+Per resolution:
+
+| | 200 | 400 | 800 |
+|---|---|---|---|
+| `1e 46`/`1e 21`/`1e 22` timing (u16) | 0x0f00 | 0x0cc0 | 0x1500 |
+| `1e 46` byte 0, `1e 11` | 4 | 4 | 3 |
+| probe window | 21-37 | 21-37 | 32-48 |
+| image `1e 41` bytes 8-9 | 0x1b1 | 0x1a1 | 0x101 |
+| 51-step move speed (type `05`, 1 entry) | 160 | 136 | 224 |
+| move to area at y = 0 (steps + both ramps) | 706 | 956 | 1212 |
+| scan move tail, ramp entries, flags | 120, 512, 0 | 126, 256, 2 | 126, 0, 8 |
+
+1600 dpi needs a capture (`tools/capture/capture.sh --set 2`).
+
+**Widths.** Epson rounds the area's offsets to the nearest pixel and cuts the
+width down to a multiple of 8. At 800 dpi the raw line is the width itself.
+A 1,889 px line hung the scanner mid-scan, so we pad it to a multiple of 32.
+A hung scanner (status `58 81`, busy) needs a power cycle. **A USB port reset
+does not help: the scanner drops off the bus until it is power-cycled.**
+
 ## The `1e` commands in a scan, in order
 
 From one 200 dpi colour scan, and a repeat of it to see which values move.

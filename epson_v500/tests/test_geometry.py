@@ -31,7 +31,7 @@ def test_region_on_a_synthetic_template(tmp_path):
     params = struct.unpack_from("<6I", dev.sent(b"\x1e\x57")[0])
     assert params[2:] == (2, 100, 3, 7)
     start, end, lines = struct.unpack_from("<3H", dev.sent(b"\x1e\x41")[-1])
-    assert (start, end - start, lines) == (2, 3, 17)          # x offset, width, height + line shift
+    assert (start, end - start, lines) == (2, 32, 17)         # x offset, width padded to 32, height + line shift
     pre_steps, _, pre_ramp = move(dev, 0)
     assert pre_steps + 2 * pre_ramp == 194 + 2 * 256 + 100 * 12  # same start, 100 lines further
     assert move(dev, 1)[0] == 17 * 12 + 120
@@ -49,6 +49,8 @@ def test_area_outside_the_bed_is_refused(tmp_path):
 def test_from_mm_matches_epsons_rounding():
     assert geometry.Region.from_mm(200, 20, 30, 60, 40) == geometry.Region(157, 236, 472, 314)
     assert geometry.Region.full_bed(200) == geometry.Region(0, 0, 1696, 2339)
+    assert geometry.Region.from_mm(400, 20, 30, 60, 40) == geometry.Region(315, 472, 944, 629)
+    assert geometry.Region.from_mm(800, 20, 30, 60, 40) == geometry.Region(630, 945, 1888, 1259)
 
 
 TEMPLATES = sorted(glob.glob(str(Path(__file__).parent.parent / "captures/*/0[2-6]*.usblog")))

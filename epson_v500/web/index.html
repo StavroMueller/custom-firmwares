@@ -26,23 +26,34 @@
         <span id="device" class="muted">Not connected</span>
       </div>
 
-      <h2><span class="n">2</span> Files</h2>
-      <p class="muted small">Your own copies, kept in this browser only.</p>
+      <h2><span class="n">2</span> Firmware</h2>
+      <p class="muted small">The scanner needs its firmware after every power-on. Pick Epson's Linux
+        driver download (<code>iscan-gt-x770-bundle-*.tar.gz</code>, from Epson's support site); the
+        page takes the firmware out of it and keeps it in this browser.</p>
       <label class="file">
-        <span>Firmware <code>esfw7C.bin</code></span>
-        <input id="firmware" type="file" accept=".bin">
+        <input id="firmware" type="file" accept=".gz,.deb,.bin">
         <span id="firmware-name" class="muted small">none</span>
       </label>
-      <label class="file">
-        <span>Templates <code>*.usblog</code>, one per resolution</span>
-        <input id="templates" type="file" accept=".usblog" multiple>
-        <span id="templates-list" class="muted small">none</span>
-      </label>
+      <details class="advanced">
+        <summary>Templates (optional)</summary>
+        <p class="muted small">Captures of Epson's driver (<code>tools/capture</code>) add resolutions
+          the page can't build yet.</p>
+        <label class="file">
+          <input id="templates" type="file" accept=".usblog" multiple>
+          <span id="templates-list" class="muted small">none</span>
+        </label>
+      </details>
       <button id="forget" class="link">Forget stored files</button>
 
       <h2><span class="n">3</span> Scan</h2>
       <div class="grid">
         <label>Resolution <select id="dpi"></select></label>
+        <label>Mode <select id="mode">
+          <option value="colour">Colour</option>
+          <option value="grey">Grey</option>
+        </select></label>
+      </div>
+      <div class="grid">
         <label>Area <select id="area-preset">
           <option value="full">Full bed</option>
           <option value="custom">Custom (mm)</option>

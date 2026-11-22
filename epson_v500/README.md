@@ -24,9 +24,13 @@ python3 -m http.server 8000      # WebUSB needs localhost or https
 ```
 
 Open <http://localhost:8000>, click Connect and pick the scanner. Then pick
-your `esfw7C.bin` and one or more template captures (`captures/<ts>/*.usblog`).
-Both stay in the browser, which keeps them for next time. Choose a resolution
-and an area, and Scan: the image paints as the head moves.
+Epson's Linux driver download, `iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz`
+from Epson's support site. The page takes the firmware out of it and keeps
+it in the browser for next time. Choose a resolution (200, 400 or 800 dpi),
+colour or grey, and an area, then click Scan. The image paints as the head
+moves. No capture of Epson's driver is needed. Templates
+(`captures/<ts>/*.usblog`) are optional and only add resolutions the page
+can't build yet.
 
 `web/test/sim.html` runs the same page against a simulated scanner that
 replays a capture (serve `epson_v500/` and open
@@ -229,8 +233,14 @@ hardware you own falls under the EULA's personal-use grant.
 - [x] WebUSB page (`web/`): the driver in plain JavaScript; matches the
       Python byte for byte on every capture, runs end to end on a simulated
       scanner.
-- [ ] First WebUSB scan on the real scanner.
-- [ ] Resolutions without a template (1600 dpi; motor tables).
+- [x] Scans without any capture (`web/v500/protocol.js`): 200 and 400 dpi
+      checked on the real scanner, through the JS driver.
+- [x] Firmware straight from Epson's download, in the browser (`web/v500/bundle.js`).
+- [ ] 800 dpi from scratch on the real scanner: the first try (1,889 px
+      wide) hung it. Widths are now padded like Epson's; retest after a
+      power cycle.
+- [ ] First WebUSB scan on the real scanner, from the page.
+- [ ] 1600 dpi: needs `tools/capture/capture.sh --set 2`.
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.
 - [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).

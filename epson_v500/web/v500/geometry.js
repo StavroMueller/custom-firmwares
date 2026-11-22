@@ -8,6 +8,7 @@ import { CMD, params, Template } from "./replay.js";
 export const STEPS_PER_INCH = 2400;
 export const BLOCK_BYTES = 51200; // Epson reads in chunks of this size; image blocks fit in it
 export const RAW_QUANTUM = 384; // raw line widths when the sensor runs faster than the scan
+export const LINE_QUANTUM = 32; // otherwise: every width Epson sent at 800 dpi is a multiple of 32; 1,889 px hung the scanner
 export const USED_MARGIN = 3; // extra sensor pixels Epson's shading table covers
 export const BED_IN = 8.48; // the scanner's maximum width
 export const BED_MM = 297.18; // and the driver's maximum height
@@ -18,10 +19,13 @@ export function region(x, y, width, height) {
   return { x, y, width, height };
 }
 
-// mm -> px through SANE's fixed point (1/65536 mm), as Epson's driver gets them.
+// mm -> px through SANE's fixed point (1/65536 mm), as Epson's driver gets
+// them. Epson rounds the offsets, truncates the height and the width to a
+// multiple of 8 (60 mm at 800 dpi: 1,888 px, not 1,889).
 export function fromMm(dpi, left, top, width, height) {
-  const px = (v) => Math.floor((Math.floor(v * 65536) / 65536 / 25.4) * dpi);
-  return region(px(left), px(top), px(width), px(height));
+  const exact = (v) => (Math.floor(v * 65536) / 65536 / 25.4) * dpi;
+  return region(Math.floor(exact(left) + 0.5), Math.floor(exact(top) + 0.5),
+    Math.floor(Math.floor(exact(width)) / 8) * 8, Math.floor(exact(height)));
 }
 
 export function fullBed(dpi) {
@@ -70,7 +74,8 @@ export function retarget(t, area) {
   const ratio = windowT / rawWT;
   const origin = startT - Math.round(tx * ratio);
 
-  const rawW = ratio === 1 ? area.width : Math.ceil(area.width / RAW_QUANTUM) * RAW_QUANTUM;
+  const quantum = ratio === 1 ? LINE_QUANTUM : RAW_QUANTUM;
+  const rawW = Math.ceil(area.width / quantum) * quantum; // the host crops the padding
   const window = Math.round(rawW * ratio);
   let start = origin + Math.round(area.x * ratio);
   let cropX = 0;
