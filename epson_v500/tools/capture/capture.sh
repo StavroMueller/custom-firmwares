@@ -1,7 +1,10 @@
 #!/bin/bash
 # Record the USB traffic of real V500 scans made with Epson's own driver.
 #
-#   sudo tools/capture/capture.sh /path/to/iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz
+#   sudo tools/capture/capture.sh [--set 2] /path/to/iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz
+#
+# Set 1 (the default) is the first survey of settings. Set 2 adds 1600 dpi,
+# full-width scans at 400 and 800 dpi, grey at 400 dpi, and the offset scan.
 #
 # Power-cycle the scanner first, so the capture starts from "no firmware".
 # Epson's driver runs in a container (tools/capture/Dockerfile); the host
@@ -20,7 +23,10 @@ HERE=$(dirname "$(readlink -f "$0")")
 ROOT=$(readlink -f "$HERE/../..")
 
 [ "$(id -u)" = 0 ] || { echo "run with sudo (usbmon and docker need root)" >&2; exit 1; }
-[ $# -ge 1 ] || { echo "usage: sudo $0 <bundle.tar.gz> [out-dir]" >&2; exit 2; }
+SET=1
+if [ "${1:-}" = "--set" ]; then SET=${2:-}; shift 2; fi
+[[ "$SET" =~ ^[12]$ ]] || { echo "--set is 1 or 2" >&2; exit 2; }
+[ $# -ge 1 ] || { echo "usage: sudo $0 [--set 2] <bundle.tar.gz> [out-dir]" >&2; exit 2; }
 BUNDLE=$(readlink -f "$1")
 OUT=$(readlink -m "${2:-$ROOT/captures/$(date +%Y%m%d-%H%M%S)}")
 
@@ -64,12 +70,23 @@ step() {
 REGION="-l 20 -t 30 -x 60 -y 40"
 step 01-list list
 step 01-options options
-step 02-color-200-full 02-color-200-full.png --mode Color --resolution 200
-step 03-color-200-region 03-color-200-region.png --mode Color --resolution 200 $REGION
-step 04-color-400-region 04-color-400-region.png --mode Color --resolution 400 $REGION
-step 05-color-800-region 05-color-800-region.png --mode Color --resolution 800 $REGION
-step 06-gray-200-region 06-gray-200-region.png --mode Gray --resolution 200 $REGION
-step 07-color16-200-region 07-color16-200-region.png --mode Color --depth 16 --resolution 200 $REGION
-step 08-color-200-offset 08-color-200-offset.png --mode Color --resolution 200 -l 50 -t 100 -x 60 -y 40
+if [ "$SET" = 1 ]; then
+    step 02-color-200-full 02-color-200-full.png --mode Color --resolution 200
+    step 03-color-200-region 03-color-200-region.png --mode Color --resolution 200 $REGION
+    step 04-color-400-region 04-color-400-region.png --mode Color --resolution 400 $REGION
+    step 05-color-800-region 05-color-800-region.png --mode Color --resolution 800 $REGION
+    step 06-gray-200-region 06-gray-200-region.png --mode Gray --resolution 200 $REGION
+    # 16-bit scans hang the scanner until it is power-cycled: keep it near the end
+    step 07-color16-200-region 07-color16-200-region.png --mode Color --depth 16 --resolution 200 $REGION
+    step 08-color-200-offset 08-color-200-offset.png --mode Color --resolution 200 -l 50 -t 100 -x 60 -y 40
+else
+    # Same region as set 1's 03-05, so 1600 dpi lines up with 200, 400 and 800.
+    step 09-color-1600-region 09-color-1600-region.png --mode Color --resolution 1600 $REGION
+    # The whole width, shallow: checks the sensor-window rule on wide areas.
+    step 10-color-400-fullwidth 10-color-400-fullwidth.png --mode Color --resolution 400 -l 0 -t 30 -x 215.9 -y 40
+    step 11-color-800-fullwidth 11-color-800-fullwidth.png --mode Color --resolution 800 -l 0 -t 30 -x 215.9 -y 20
+    step 12-gray-400-region 12-gray-400-region.png --mode Gray --resolution 400 $REGION
+    step 13-color-200-offset 13-color-200-offset.png --mode Color --resolution 200 -l 50 -t 100 -x 60 -y 40
+fi
 
 echo "done: $OUT"
