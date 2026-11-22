@@ -41,10 +41,12 @@ USB foot pedal works. Escape cancels a scan or leaves. A cancelled or failed
 scan is aborted on the scanner, so it doesn't stay stuck. Any laptop, mini PC or Android
 tablet with Chrome can run it. iPads can't, because Safari has no WebUSB.
 
-The page reuses the analog levels the scanner measured on an earlier scan
-(for up to 10 minutes). That skips 2.2 s of self-measurement: on the real
-scanner, the first rows of a 60 x 40 mm scan appear after 3.1 s instead of
-5.3 s, with the same image quality.
+The page scans faster than Epson's driver: a 60 x 40 mm area at 200 dpi
+takes 2.6 s instead of 7.0, with the first rows after 1.8 s (PROTOCOL.md,
+"Scanning faster than Epson's driver"). It reuses the analog levels and
+the calibration of an earlier scan for up to 10 minutes, and with Fast
+scanning on (the default) it uses the shortest line period the sensor
+allows.
 
 `web/test/sim.html` runs the same page against a simulated scanner that
 replays a capture (serve `epson_v500/` and open

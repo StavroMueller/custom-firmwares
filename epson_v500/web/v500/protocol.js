@@ -17,26 +17,46 @@ import { CMD, POLL_READY, STATUS, Template } from "./replay.js";
 
 const ACK = new Uint8Array([0x06]);
 
-// Per-resolution constants: 200-800 measured from captures of Epson's driver
-// (and matching Epson's tables), 1600 from the plugin's tables and formulas
-// alone (static analysis: PROTOCOL.md, "Where the settings come from").
-// lines: the line rate as lo/hi of 2400 steps per inch (1600 dpi: 2/3).
+// Per-resolution settings: the line rate lo/hi of 2400 steps per inch, the
+// sensor line period, the analog-front-end mode, the dark probe window, the
+// image `1e 41` bytes 8-9, sensor units per pixel and the window origin.
+// 200-800 measured from captures of Epson's driver; 1600 from the plugin's
+// tables alone (static analysis: PROTOCOL.md, "Where the settings come from").
+// The motor settings follow from the period (motor() below).
+// fastPeriod: the shortest period the plugin's own rule allows for the
+// sensor mode (half the minimum line plus 200, rounded up to the Y table's
+// step). Faster scans, slightly shorter exposure; checked on the real
+// scanner: same image, noise up 6% at 400 dpi, 14% at 800, 20% at 1600.
 export const RESOLUTIONS = {
-  200: { lines: [1, 12], timing: 0x0f00, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, slowSpeed: 160,
-         scanRamp: { start: 2500, cruise: 320, n: 512 }, scanRampUsed: 512, scanTail: 120, scanFlags: 0,
-         ratio: 8 / 3, origin: 143, toTop: 706 },
-  400: { lines: [1, 6], timing: 0x0cc0, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, slowSpeed: 136,
-         scanRamp: { start: 1249, cruise: 272, n: 512 }, scanRampUsed: 256, scanTail: 126, scanFlags: 2,
-         ratio: 4 / 3, origin: 143, toTop: 956 },
-  800: { lines: [1, 3], timing: 0x1500, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, slowSpeed: 224,
-         scanSpeed: 112, scanRampUsed: 0, scanTail: 126, scanFlags: 8,
-         ratio: 1, origin: 213, toTop: 1212 },
-  // Not yet checked against a capture. The origin is the plugin's 431 less
-  // the 1-2 units our captures show at the other resolutions (doubled).
-  1600: { lines: [2, 3], timing: 0x2a60, afe: 2, probe: [61, 109], imageMode: 0x0201, slowSpeed: 452,
-          scanSpeed: 452, scanRampUsed: 0, scanTail: 30, scanFlags: 8,
-          ratio: 1, origin: 427, toTop: 1308 },
+  200: { fastPeriod: 2688, lines: [1, 12], period: 3840, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, ratio: 8 / 3, origin: 143 },
+  400: { fastPeriod: 2688, lines: [1, 6], period: 3264, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, ratio: 4 / 3, origin: 143 },
+  800: { fastPeriod: 3840, lines: [1, 3], period: 5376, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, ratio: 1, origin: 213 },
+  // The origin is the plugin's 431 less the 1-2 units our captures show at
+  // the other resolutions (doubled); not yet checked against a capture.
+  1600: { fastPeriod: 7416, lines: [2, 3], period: 10848, afe: 2, probe: [61, 109], imageMode: 0x0201, ratio: 1, origin: 427 },
 };
+
+// The motor for a line period, as the plugin computes it (SYMBOL_41 and
+// SYMBOL_292). T is the step interval that keeps pace with the sensor, f the
+// step rate: fast enough for a full acceleration ramp, a half-step ramp, or a
+// constant speed. Reproduces every capture.
+export function motor(dpi, period) {
+  const [lo, hi] = RESOLUTIONS[dpi].lines;
+  const T = (lo * period) / hi;
+  const f = (hi * 1e6) / (period * lo);
+  let scan;
+  if (f > 1999) scan = { table: ramp({ start: 2500, cruise: T, n: 512 }), used: 512, flags: 0 };
+  else if (f >= 700) scan = { table: ramp({ start: 1249, cruise: T / 2, n: 512 }), used: 256, flags: 2 };
+  else scan = { table: new Uint16Array([T >> 4]), used: 0, flags: 8 };
+  const preroll = f > 5499 ? 160 : f > 150 ? 128 : 32;
+  const tail = Math.floor(preroll / hi) * hi;
+  return {
+    scan,
+    tail,
+    slowSpeed: Math.floor(period / 24), // the 51-step move to the white reference
+    toTop: 1338 - tail - scan.used, // the move to the area at y = 0, ramps included
+  };
+}
 export const MOVE_RAMP = { start: 2500, cruise: 160, n: 512 }; // the move to the top of the area
 const SETTLE = new Uint8Array([0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]); // 1e 43
 const SETTLE_SCAN = new Uint8Array([0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]);
@@ -106,9 +126,11 @@ class Builder {
 
 // A base template for `dpi`: a one-line, 384 px scan at the top left. Use
 // build() for a real area.
-function base(dpi, { grey = false, gamma = 1.8 } = {}) {
-  const r = RESOLUTIONS[dpi];
-  if (!r) throw new Error(`no settings for ${dpi} dpi yet; have ${Object.keys(RESOLUTIONS).join(", ")}`);
+function base(dpi, { grey = false, gamma = 1.8, period = null, fast = false } = {}) {
+  const r0 = RESOLUTIONS[dpi];
+  if (!r0) throw new Error(`no settings for ${dpi} dpi yet; have ${Object.keys(RESOLUTIONS).join(", ")}`);
+  const r = { ...r0, period: period ?? (fast ? r0.fastPeriod : r0.period) };
+  const m = motor(dpi, r.period);
   const [lo, hi] = r.lines;
   const probeWidth = r.probe[1] - r.probe[0];
   const width = 384, height = 1, extra = Math.max(...lineShift(dpi));
@@ -143,18 +165,18 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   b.query(0x1e86, 4);
 
   // analog front end: let the scanner measure its levels, twice, then keep them
-  const levels = block(12, [[0, 1, r.afe], [2, 2, r.timing]]);
+  const levels = block(12, [[0, 1, r.afe], [2, 2, r.period]]);
   b.set(CMD.AFE, u8([0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0]));
   b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
   b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
   b.set(0x1e11, u8([r.afe])).set(CMD.AFE, new Uint8Array(12)); // 1e 31: the measured levels, at run time
 
   // sensor setup and the dark probe
-  b.set(0x1e21, block(26, [[0, 2, r.timing]]));
+  b.set(0x1e21, block(26, [[0, 2, r.period]]));
   const t07 = new Uint8Array(256).fill(0xff);
   TYPE07.forEach((v, i) => setU16(t07, i * 2, v));
   b.cmd(CMD.TABLE, ack(), step(true, u8([0x07, 0, 0, 0, 0, 0, 1, 0])), step(true, t07), ack());
-  const timing = (darkFlag = 0) => block(12, [[0, 2, r.timing], [9, 1, darkFlag]]);
+  const timing = (darkFlag = 0) => block(12, [[0, 2, r.period], [9, 1, darkFlag]]);
   b.set(0x1e22, timing());
   b.set(CMD.WINDOW, block(22, [[0, 2, r.probe[0]], [2, 2, r.probe[1]], [4, 2, 4], [9, 1, lo], [10, 1, hi], [16, 1, 0x80], [18, 1, 4]]));
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).status();
@@ -164,7 +186,7 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   b.set(0x1e22, timing());
   b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, 32], [9, 1, 2], [10, 1, 3], [11, 1, 0x40], [16, 1, 0x80], [17, 1, 0x80], [18, 1, 32]]));
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE); // 1e 42: probe offsets, at run time
-  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(new Uint16Array([r.slowSpeed])));
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(new Uint16Array([m.slowSpeed])));
   b.set(CMD.MOVE, block(12, [[0, 4, 51], [4, 2, 3], [10, 2, 8]])).status();
   b.read([]).status(); // sizes set by retarget()
 
@@ -180,7 +202,7 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   for (const addr of [0x00, 0x20, 0x40]) b.cmd(CMD.TABLE, ack(), step(true, u8([0x02, 0x00, addr, 0x38, 0x00, 0x00, 0x20, 0x00])), step(true, g), ack());
   b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(ramp(MOVE_RAMP)));
   const n = 256;
-  b.set(CMD.MOVE, block(12, [[0, 4, r.toTop - 2 * n], [6, 2, n - 1], [8, 2, n - 1], [10, 2, 0x10]]));
+  b.set(CMD.MOVE, block(12, [[0, 4, m.toTop - 2 * n], [6, 2, n - 1], [8, 2, n - 1], [10, 2, 0x10]]));
   b.cmd(0x1e05, ack()).status();
 
   // the image pass
@@ -189,10 +211,9 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
     [11, 1, 0x80], [12, 1, 0x80], [16, 1, 0x80], [17, 1, 0xa0], [18, 1, perBlock]])); // 11 and 15: at run time
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE_SCAN); // 1e 42: calibration, at run time
   b.table([0x06, 0x00, 0x08, 0x01, 0x02], new Uint8Array(window * 6)); // shading: at run time
-  const scanTable = r.scanRamp ? bytesOf(ramp(r.scanRamp)) : bytesOf(new Uint16Array([r.scanSpeed]));
-  b.table([0x05, 0x00, 0x00, 0x01, 0x02], scanTable);
-  const used = r.scanRampUsed ? r.scanRampUsed - 1 : 0;
-  b.set(CMD.MOVE, block(12, [[0, 4, scanSteps(lines, dpi) + r.scanTail], [4, 2, r.scanTail], [6, 2, used], [8, 2, used], [10, 2, r.scanFlags]]));
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(m.scan.table));
+  const used = m.scan.used ? m.scan.used - 1 : 0;
+  b.set(CMD.MOVE, block(12, [[0, 4, scanSteps(lines, dpi) + m.tail], [4, 2, m.tail], [6, 2, used], [8, 2, used], [10, 2, m.scan.flags]]));
   b.status().read([]);
 
   return new Template({

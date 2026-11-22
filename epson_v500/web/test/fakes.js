@@ -101,8 +101,8 @@ export class GeometryScanner {
     const p = this.sent(0x1e41).at(-1);
     const start = u16(p, 0), end = u16(p, 2), lines = u16(p, 4);
     const window = end - start;
-    if (this.reads < 3) {
-      const d = reference([1200, 40000, 1300][this.reads], lines, window);
+    if (p[17] !== 0xa0) { // not the image pass: a 16-bit reference (probe 4 lines, white 32, dark 16)
+      const d = reference({ 4: 1200, 32: 40000, 16: 1300 }[lines], lines, window);
       return join([d, trailer(d.length)]);
     }
     const width = Math.round(window / (this.ratio ?? RATIO[this.dpi]));

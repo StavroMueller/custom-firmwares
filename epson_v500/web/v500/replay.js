@@ -81,8 +81,11 @@ export class Replayer {
   // lamp warm, reusing them skips the scanner's 2.3 s self-measurement; the
   // white and dark references are still read fresh, so the image stays
   // calibrated.
+  // calibration: {key, cal} from a previous scan of the same window and line
+  // period (its `calibration` property). Reusing it skips the dark probe, the
+  // white and dark reference reads and the lamp off/on: about 1 s.
   constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {},
-    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null, signal = null } = {}) {
+    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null, signal = null, calibration: reuse = null } = {}) {
     this.t = template;
     this.io = io;
     this.sleep = sleep;
@@ -98,9 +101,46 @@ export class Replayer {
     this.afe = levels;
     this.probeOff = null;
     this.cal = null;
-    this.count = new Map();
-    this.imageWindow = template.groups.filter((g) => g.command === CMD.WINDOW).length - 1;
-    this.totalReads = template.groups.filter((g) => g.command === CMD.READ).length;
+    // each group's occurrence among groups of its command, and each read's
+    // number, fixed up front so skipping groups doesn't shift them
+    const seen = new Map();
+    this.occurrence = template.groups.map((g) => {
+      const n = seen.get(g.command) ?? 0;
+      seen.set(g.command, n + 1);
+      return n;
+    });
+    this.imageWindow = (seen.get(CMD.WINDOW) ?? 0) - 1;
+    this.totalReads = seen.get(CMD.READ) ?? 0;
+    this.moves = seen.get(CMD.MOVE) ?? 0;
+    this.key = this.calibrationKey();
+    this.reuseCal = reuse && reuse.key === this.key ? reuse.cal : null;
+    if (this.reuseCal) this.cal = this.reuseCal;
+  }
+
+  // What a calibration depends on: the sensor window, line period and the
+  // pixels used. Scans that share it can share a calibration.
+  calibrationKey() {
+    const g = this.t.groups;
+    const white = g.filter((x) => x.command === CMD.WINDOW)[1];
+    const timing = g.find((x) => x.command === 0x1e21);
+    const used = this.t.used.reduce((a, b) => a + b, 0);
+    return [white && hex(params(white)[0].subarray(0, 4)), timing && hex(params(timing)[0].subarray(0, 2)), used].join("|");
+  }
+
+  // The calibration this scan used, for the next scan to reuse.
+  get calibration() {
+    return this.cal ? { key: this.key, cal: this.cal } : null;
+  }
+
+  // Groups to skip when the calibration is reused: from the dark probe's
+  // window to the lamp coming back on after the dark reference.
+  calibrationSpan() {
+    const g = this.t.groups;
+    const start = g.findIndex((x) => x.command === CMD.WINDOW);
+    let darkRead = -1;
+    g.forEach((x, i) => { if (x.command === CMD.READ && this.occurrence[i] === this.totalReads - 2) darkRead = i; });
+    const lampOn = g.findIndex((x, i) => i > darkRead && x.command === 0x1ea2);
+    return start >= 0 && darkRead >= 0 && lampOn >= 0 ? [start, lampOn] : null;
   }
 
   // Runs the scan. If it's stopped (signal) or fails once the image read
@@ -132,26 +172,35 @@ export class Replayer {
     const groups = this.t.groups;
     // the level measurement: from the first 1e 46 to the last 1e 92
     const measure = [groups.findIndex((g) => g.command === 0x1e46), groups.findLastIndex((g) => g.command === CMD.AFE_READ)];
+    const calSpan = this.reuseCal ? this.calibrationSpan() : null;
+    if (this.reuseCal && !calSpan) throw new Error("template has no calibration to skip");
+    // skipping the white reference also skips its move: the move to the area goes that much further
+    this.extraSteps = 0;
+    if (calSpan) {
+      const whiteMove = groups.findIndex((g, i) => g.command === CMD.MOVE && i > calSpan[0] && i < calSpan[1]);
+      if (whiteMove >= 0) this.extraSteps = u32(params(groups[whiteMove])[0], 0);
+      this.log("reusing the calibration from an earlier scan");
+    }
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
+      if (calSpan && i >= calSpan[0] && i <= calSpan[1]) continue;
       this.checkStop();
       if (g.command === POLL_READY || g.command === STATUS) {
         while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
         if (g.command === POLL_READY) await this.pollReady();
         else await this.waitNotBusy();
       } else {
-        await this.replay(g);
+        await this.replay(g, i);
       }
       this.onProgress(i + 1, groups.length);
     }
     return this.image;
   }
 
-  async replay(g) {
-    const n = this.count.get(g.command) ?? 0;
-    this.count.set(g.command, n + 1);
-    const isImage = g.command === CMD.READ && this.reads.length === this.totalReads - 1;
+  async replay(g, i) {
+    const n = this.occurrence[i];
+    const isImage = g.command === CMD.READ && n === this.totalReads - 1;
     if (isImage) this.startImage();
     if (isImage) this.moving = true; // like Epson's plugin: abort only once the image read has started
     await this.io.write(commandBytes(g.command));
@@ -182,6 +231,10 @@ export class Replayer {
       const o = this.need(this.probeOff, "probe read");
       ps[0] = calibration.param1e42([0, 0, 0], o);
     } else if (g.command === CMD.LEVELS && n === 3) ps[0] = this.calibrate().param1e42();
+    else if (g.command === CMD.MOVE && n === this.moves - 2 && this.extraSteps) {
+      ps[0] = ps[0].slice(); // the move to the area, from home instead of the white reference
+      new DataView(ps[0].buffer).setUint32(0, u32(ps[0], 0) + this.extraSteps, true);
+    }
     else if (g.command === CMD.TABLE && ps.length && ps[0][0] === 6) ps[1] = this.calibrate().tableBytes();
     else if (g.command === CMD.WINDOW && n === this.imageWindow) {
       const [b11, b15] = this.calibrate().windowBytes();
@@ -195,8 +248,8 @@ export class Replayer {
     if (g.command === CMD.AFE_READ) this.afe = got[0];
     else if (g.command === CMD.READ) {
       const data = got.filter((r) => !(r.length === 1 && r[0] === ACK));
-      this.reads.push(data);
-      const k = this.reads.length - 1;
+      const k = n;
+      this.reads[k] = data;
       this.log(`read ${k}: ${data.reduce((s, r) => s + r.length, 0)} bytes`);
       if (k === 0) this.probeOff = calibration.probeOffsets(calibration.u16Samples(payload(data)));
     }

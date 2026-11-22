@@ -88,6 +88,8 @@ h2:first-child { margin-top: 0; }
 .grid.four { grid-template-columns: repeat(4, 1fr); }
 label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .file { margin: 8px 0 10px; }
+label.check { display: block; margin: 6px 0; color: var(--ink); }
+label.check input { margin-right: 6px; }
 .file > span:first-child { color: var(--ink); }
 
 input, select, button {

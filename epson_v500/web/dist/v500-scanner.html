@@ -96,6 +96,8 @@ h2:first-child { margin-top: 0; }
 .grid.four { grid-template-columns: repeat(4, 1fr); }
 label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .file { margin: 8px 0 10px; }
+label.check { display: block; margin: 6px 0; color: var(--ink); }
+label.check input { margin-right: 6px; }
 .file > span:first-child { color: var(--ink); }
 
 input, select, button {
@@ -818,8 +820,11 @@ class Replayer {
   // lamp warm, reusing them skips the scanner's 2.3 s self-measurement; the
   // white and dark references are still read fresh, so the image stays
   // calibrated.
+  // calibration: {key, cal} from a previous scan of the same window and line
+  // period (its `calibration` property). Reusing it skips the dark probe, the
+  // white and dark reference reads and the lamp off/on: about 1 s.
   constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {},
-    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null, signal = null } = {}) {
+    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null, signal = null, calibration: reuse = null } = {}) {
     this.t = template;
     this.io = io;
     this.sleep = sleep;
@@ -835,9 +840,46 @@ class Replayer {
     this.afe = levels;
     this.probeOff = null;
     this.cal = null;
-    this.count = new Map();
-    this.imageWindow = template.groups.filter((g) => g.command === CMD.WINDOW).length - 1;
-    this.totalReads = template.groups.filter((g) => g.command === CMD.READ).length;
+    // each group's occurrence among groups of its command, and each read's
+    // number, fixed up front so skipping groups doesn't shift them
+    const seen = new Map();
+    this.occurrence = template.groups.map((g) => {
+      const n = seen.get(g.command) ?? 0;
+      seen.set(g.command, n + 1);
+      return n;
+    });
+    this.imageWindow = (seen.get(CMD.WINDOW) ?? 0) - 1;
+    this.totalReads = seen.get(CMD.READ) ?? 0;
+    this.moves = seen.get(CMD.MOVE) ?? 0;
+    this.key = this.calibrationKey();
+    this.reuseCal = reuse && reuse.key === this.key ? reuse.cal : null;
+    if (this.reuseCal) this.cal = this.reuseCal;
+  }
+
+  // What a calibration depends on: the sensor window, line period and the
+  // pixels used. Scans that share it can share a calibration.
+  calibrationKey() {
+    const g = this.t.groups;
+    const white = g.filter((x) => x.command === CMD.WINDOW)[1];
+    const timing = g.find((x) => x.command === 0x1e21);
+    const used = this.t.used.reduce((a, b) => a + b, 0);
+    return [white && hex(params(white)[0].subarray(0, 4)), timing && hex(params(timing)[0].subarray(0, 2)), used].join("|");
+  }
+
+  // The calibration this scan used, for the next scan to reuse.
+  get calibration() {
+    return this.cal ? { key: this.key, cal: this.cal } : null;
+  }
+
+  // Groups to skip when the calibration is reused: from the dark probe's
+  // window to the lamp coming back on after the dark reference.
+  calibrationSpan() {
+    const g = this.t.groups;
+    const start = g.findIndex((x) => x.command === CMD.WINDOW);
+    let darkRead = -1;
+    g.forEach((x, i) => { if (x.command === CMD.READ && this.occurrence[i] === this.totalReads - 2) darkRead = i; });
+    const lampOn = g.findIndex((x, i) => i > darkRead && x.command === 0x1ea2);
+    return start >= 0 && darkRead >= 0 && lampOn >= 0 ? [start, lampOn] : null;
   }
 
   // Runs the scan. If it's stopped (signal) or fails once the image read
@@ -869,26 +911,35 @@ class Replayer {
     const groups = this.t.groups;
     // the level measurement: from the first 1e 46 to the last 1e 92
     const measure = [groups.findIndex((g) => g.command === 0x1e46), groups.findLastIndex((g) => g.command === CMD.AFE_READ)];
+    const calSpan = this.reuseCal ? this.calibrationSpan() : null;
+    if (this.reuseCal && !calSpan) throw new Error("template has no calibration to skip");
+    // skipping the white reference also skips its move: the move to the area goes that much further
+    this.extraSteps = 0;
+    if (calSpan) {
+      const whiteMove = groups.findIndex((g, i) => g.command === CMD.MOVE && i > calSpan[0] && i < calSpan[1]);
+      if (whiteMove >= 0) this.extraSteps = u32(params(groups[whiteMove])[0], 0);
+      this.log("reusing the calibration from an earlier scan");
+    }
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
+      if (calSpan && i >= calSpan[0] && i <= calSpan[1]) continue;
       this.checkStop();
       if (g.command === POLL_READY || g.command === STATUS) {
         while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
         if (g.command === POLL_READY) await this.pollReady();
         else await this.waitNotBusy();
       } else {
-        await this.replay(g);
+        await this.replay(g, i);
       }
       this.onProgress(i + 1, groups.length);
     }
     return this.image;
   }
 
-  async replay(g) {
-    const n = this.count.get(g.command) ?? 0;
-    this.count.set(g.command, n + 1);
-    const isImage = g.command === CMD.READ && this.reads.length === this.totalReads - 1;
+  async replay(g, i) {
+    const n = this.occurrence[i];
+    const isImage = g.command === CMD.READ && n === this.totalReads - 1;
     if (isImage) this.startImage();
     if (isImage) this.moving = true; // like Epson's plugin: abort only once the image read has started
     await this.io.write(commandBytes(g.command));
@@ -919,6 +970,10 @@ class Replayer {
       const o = this.need(this.probeOff, "probe read");
       ps[0] = calibration.param1e42([0, 0, 0], o);
     } else if (g.command === CMD.LEVELS && n === 3) ps[0] = this.calibrate().param1e42();
+    else if (g.command === CMD.MOVE && n === this.moves - 2 && this.extraSteps) {
+      ps[0] = ps[0].slice(); // the move to the area, from home instead of the white reference
+      new DataView(ps[0].buffer).setUint32(0, u32(ps[0], 0) + this.extraSteps, true);
+    }
     else if (g.command === CMD.TABLE && ps.length && ps[0][0] === 6) ps[1] = this.calibrate().tableBytes();
     else if (g.command === CMD.WINDOW && n === this.imageWindow) {
       const [b11, b15] = this.calibrate().windowBytes();
@@ -932,8 +987,8 @@ class Replayer {
     if (g.command === CMD.AFE_READ) this.afe = got[0];
     else if (g.command === CMD.READ) {
       const data = got.filter((r) => !(r.length === 1 && r[0] === ACK));
-      this.reads.push(data);
-      const k = this.reads.length - 1;
+      const k = n;
+      this.reads[k] = data;
       this.log(`read ${k}: ${data.reduce((s, r) => s + r.length, 0)} bytes`);
       if (k === 0) this.probeOff = calibration.probeOffsets(calibration.u16Samples(payload(data)));
     }
@@ -1207,26 +1262,46 @@ const { lineShift } = __m6;
 const { CMD, POLL_READY, STATUS, Template } = __m7;
 const ACK = new Uint8Array([0x06]);
 
-// Per-resolution constants: 200-800 measured from captures of Epson's driver
-// (and matching Epson's tables), 1600 from the plugin's tables and formulas
-// alone (static analysis: PROTOCOL.md, "Where the settings come from").
-// lines: the line rate as lo/hi of 2400 steps per inch (1600 dpi: 2/3).
+// Per-resolution settings: the line rate lo/hi of 2400 steps per inch, the
+// sensor line period, the analog-front-end mode, the dark probe window, the
+// image `1e 41` bytes 8-9, sensor units per pixel and the window origin.
+// 200-800 measured from captures of Epson's driver; 1600 from the plugin's
+// tables alone (static analysis: PROTOCOL.md, "Where the settings come from").
+// The motor settings follow from the period (motor() below).
+// fastPeriod: the shortest period the plugin's own rule allows for the
+// sensor mode (half the minimum line plus 200, rounded up to the Y table's
+// step). Faster scans, slightly shorter exposure; checked on the real
+// scanner: same image, noise up 6% at 400 dpi, 14% at 800, 20% at 1600.
 const RESOLUTIONS = {
-  200: { lines: [1, 12], timing: 0x0f00, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, slowSpeed: 160,
-         scanRamp: { start: 2500, cruise: 320, n: 512 }, scanRampUsed: 512, scanTail: 120, scanFlags: 0,
-         ratio: 8 / 3, origin: 143, toTop: 706 },
-  400: { lines: [1, 6], timing: 0x0cc0, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, slowSpeed: 136,
-         scanRamp: { start: 1249, cruise: 272, n: 512 }, scanRampUsed: 256, scanTail: 126, scanFlags: 2,
-         ratio: 4 / 3, origin: 143, toTop: 956 },
-  800: { lines: [1, 3], timing: 0x1500, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, slowSpeed: 224,
-         scanSpeed: 112, scanRampUsed: 0, scanTail: 126, scanFlags: 8,
-         ratio: 1, origin: 213, toTop: 1212 },
-  // Not yet checked against a capture. The origin is the plugin's 431 less
-  // the 1-2 units our captures show at the other resolutions (doubled).
-  1600: { lines: [2, 3], timing: 0x2a60, afe: 2, probe: [61, 109], imageMode: 0x0201, slowSpeed: 452,
-          scanSpeed: 452, scanRampUsed: 0, scanTail: 30, scanFlags: 8,
-          ratio: 1, origin: 427, toTop: 1308 },
+  200: { fastPeriod: 2688, lines: [1, 12], period: 3840, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, ratio: 8 / 3, origin: 143 },
+  400: { fastPeriod: 2688, lines: [1, 6], period: 3264, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, ratio: 4 / 3, origin: 143 },
+  800: { fastPeriod: 3840, lines: [1, 3], period: 5376, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, ratio: 1, origin: 213 },
+  // The origin is the plugin's 431 less the 1-2 units our captures show at
+  // the other resolutions (doubled); not yet checked against a capture.
+  1600: { fastPeriod: 7416, lines: [2, 3], period: 10848, afe: 2, probe: [61, 109], imageMode: 0x0201, ratio: 1, origin: 427 },
 };
+
+// The motor for a line period, as the plugin computes it (SYMBOL_41 and
+// SYMBOL_292). T is the step interval that keeps pace with the sensor, f the
+// step rate: fast enough for a full acceleration ramp, a half-step ramp, or a
+// constant speed. Reproduces every capture.
+function motor(dpi, period) {
+  const [lo, hi] = RESOLUTIONS[dpi].lines;
+  const T = (lo * period) / hi;
+  const f = (hi * 1e6) / (period * lo);
+  let scan;
+  if (f > 1999) scan = { table: ramp({ start: 2500, cruise: T, n: 512 }), used: 512, flags: 0 };
+  else if (f >= 700) scan = { table: ramp({ start: 1249, cruise: T / 2, n: 512 }), used: 256, flags: 2 };
+  else scan = { table: new Uint16Array([T >> 4]), used: 0, flags: 8 };
+  const preroll = f > 5499 ? 160 : f > 150 ? 128 : 32;
+  const tail = Math.floor(preroll / hi) * hi;
+  return {
+    scan,
+    tail,
+    slowSpeed: Math.floor(period / 24), // the 51-step move to the white reference
+    toTop: 1338 - tail - scan.used, // the move to the area at y = 0, ramps included
+  };
+}
 const MOVE_RAMP = { start: 2500, cruise: 160, n: 512 }; // the move to the top of the area
 const SETTLE = new Uint8Array([0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]); // 1e 43
 const SETTLE_SCAN = new Uint8Array([0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]);
@@ -1296,9 +1371,11 @@ class Builder {
 
 // A base template for `dpi`: a one-line, 384 px scan at the top left. Use
 // build() for a real area.
-function base(dpi, { grey = false, gamma = 1.8 } = {}) {
-  const r = RESOLUTIONS[dpi];
-  if (!r) throw new Error(`no settings for ${dpi} dpi yet; have ${Object.keys(RESOLUTIONS).join(", ")}`);
+function base(dpi, { grey = false, gamma = 1.8, period = null, fast = false } = {}) {
+  const r0 = RESOLUTIONS[dpi];
+  if (!r0) throw new Error(`no settings for ${dpi} dpi yet; have ${Object.keys(RESOLUTIONS).join(", ")}`);
+  const r = { ...r0, period: period ?? (fast ? r0.fastPeriod : r0.period) };
+  const m = motor(dpi, r.period);
   const [lo, hi] = r.lines;
   const probeWidth = r.probe[1] - r.probe[0];
   const width = 384, height = 1, extra = Math.max(...lineShift(dpi));
@@ -1333,18 +1410,18 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   b.query(0x1e86, 4);
 
   // analog front end: let the scanner measure its levels, twice, then keep them
-  const levels = block(12, [[0, 1, r.afe], [2, 2, r.timing]]);
+  const levels = block(12, [[0, 1, r.afe], [2, 2, r.period]]);
   b.set(CMD.AFE, u8([0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0]));
   b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
   b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
   b.set(0x1e11, u8([r.afe])).set(CMD.AFE, new Uint8Array(12)); // 1e 31: the measured levels, at run time
 
   // sensor setup and the dark probe
-  b.set(0x1e21, block(26, [[0, 2, r.timing]]));
+  b.set(0x1e21, block(26, [[0, 2, r.period]]));
   const t07 = new Uint8Array(256).fill(0xff);
   TYPE07.forEach((v, i) => setU16(t07, i * 2, v));
   b.cmd(CMD.TABLE, ack(), step(true, u8([0x07, 0, 0, 0, 0, 0, 1, 0])), step(true, t07), ack());
-  const timing = (darkFlag = 0) => block(12, [[0, 2, r.timing], [9, 1, darkFlag]]);
+  const timing = (darkFlag = 0) => block(12, [[0, 2, r.period], [9, 1, darkFlag]]);
   b.set(0x1e22, timing());
   b.set(CMD.WINDOW, block(22, [[0, 2, r.probe[0]], [2, 2, r.probe[1]], [4, 2, 4], [9, 1, lo], [10, 1, hi], [16, 1, 0x80], [18, 1, 4]]));
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).status();
@@ -1354,7 +1431,7 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   b.set(0x1e22, timing());
   b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, 32], [9, 1, 2], [10, 1, 3], [11, 1, 0x40], [16, 1, 0x80], [17, 1, 0x80], [18, 1, 32]]));
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE); // 1e 42: probe offsets, at run time
-  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(new Uint16Array([r.slowSpeed])));
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(new Uint16Array([m.slowSpeed])));
   b.set(CMD.MOVE, block(12, [[0, 4, 51], [4, 2, 3], [10, 2, 8]])).status();
   b.read([]).status(); // sizes set by retarget()
 
@@ -1370,7 +1447,7 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   for (const addr of [0x00, 0x20, 0x40]) b.cmd(CMD.TABLE, ack(), step(true, u8([0x02, 0x00, addr, 0x38, 0x00, 0x00, 0x20, 0x00])), step(true, g), ack());
   b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(ramp(MOVE_RAMP)));
   const n = 256;
-  b.set(CMD.MOVE, block(12, [[0, 4, r.toTop - 2 * n], [6, 2, n - 1], [8, 2, n - 1], [10, 2, 0x10]]));
+  b.set(CMD.MOVE, block(12, [[0, 4, m.toTop - 2 * n], [6, 2, n - 1], [8, 2, n - 1], [10, 2, 0x10]]));
   b.cmd(0x1e05, ack()).status();
 
   // the image pass
@@ -1379,10 +1456,9 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
     [11, 1, 0x80], [12, 1, 0x80], [16, 1, 0x80], [17, 1, 0xa0], [18, 1, perBlock]])); // 11 and 15: at run time
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE_SCAN); // 1e 42: calibration, at run time
   b.table([0x06, 0x00, 0x08, 0x01, 0x02], new Uint8Array(window * 6)); // shading: at run time
-  const scanTable = r.scanRamp ? bytesOf(ramp(r.scanRamp)) : bytesOf(new Uint16Array([r.scanSpeed]));
-  b.table([0x05, 0x00, 0x00, 0x01, 0x02], scanTable);
-  const used = r.scanRampUsed ? r.scanRampUsed - 1 : 0;
-  b.set(CMD.MOVE, block(12, [[0, 4, scanSteps(lines, dpi) + r.scanTail], [4, 2, r.scanTail], [6, 2, used], [8, 2, used], [10, 2, r.scanFlags]]));
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(m.scan.table));
+  const used = m.scan.used ? m.scan.used - 1 : 0;
+  b.set(CMD.MOVE, block(12, [[0, 4, scanSteps(lines, dpi) + m.tail], [4, 2, m.tail], [6, 2, used], [8, 2, used], [10, 2, m.scan.flags]]));
   b.status().read([]);
 
   return new Template({
@@ -1398,7 +1474,7 @@ function build(dpi, area, options = {}) {
 
 const SUPPORTED = Object.keys(RESOLUTIONS).map(Number);
 
-return { RESOLUTIONS, MOVE_RAMP, gammaTable, ramp, build, SUPPORTED };
+return { RESOLUTIONS, motor, MOVE_RAMP, gammaTable, ramp, build, SUPPORTED };
 })();
 
 // ---- v500/webusb.js ----
@@ -1520,7 +1596,7 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   connect: $("connect"), device: $("device"), firmware: $("firmware"), firmwareName: $("firmware-name"),
   templates: $("templates"), templatesList: $("templates-list"), forget: $("forget"),
-  dpi: $("dpi"), mode: $("mode"), preset: $("area-preset"), areaMm: $("area-mm"),
+  dpi: $("dpi"), mode: $("mode"), fast: $("fast"), preset: $("area-preset"), areaMm: $("area-mm"),
   left: $("left"), top: $("top"), width: $("width"), height: $("height"),
   scan: $("scan"), cancel: $("cancel"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
   canvas: $("canvas"), placeholder: $("placeholder"), unsupported: $("unsupported"),
@@ -1530,7 +1606,8 @@ const state = {
   io: null,
   firmware: null, // parsed esfw7C.bin
   templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
-  levels: null, // {data, at}: analog levels measured by an earlier scan, reused while fresh
+  levels: null, // {data, at, key}: analog levels measured by an earlier scan, reused while fresh
+  calibration: null, // {key, cal, at}: an earlier scan's calibration, reused for the same window
   abort: null, // AbortController of the scan in progress
   ioLock: Promise.resolve(), // one user of the USB connection at a time
 };
@@ -1610,13 +1687,16 @@ function refresh() {
 // ---- scanner ----
 
 // Reusing the last measured analog levels skips the scanner's 2.2 s
-// self-measurement (first rows after 3.1 s instead of 5.3 s, same image
-// quality). Measure again after a power cycle and every 10 minutes.
+// self-measurement, and reusing the calibration skips the reference reads
+// and the lamp off/on (another 1 s). On the real scanner the first rows of a
+// 60 x 40 mm scan then appear after 1.8 s instead of 5 s, same image
+// quality. Both are measured again after a power cycle and every 10 minutes.
 const LEVELS_FRESH_MS = 10 * 60 * 1000;
+const fresh = (entry) => entry && Date.now() - entry.at < LEVELS_FRESH_MS;
 
 async function attach(io) {
   state.io = io;
-  state.levels = null;
+  state.levels = state.calibration = null;
   try {
     const s = await status(io);
     ui.device.textContent = `${io.name}: ${isLoaded(s) ? "firmware running" : "needs firmware"}`;
@@ -1748,14 +1828,16 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
     if (!state.firmware) throw new Error("The scanner needs its firmware: pick Epson's driver download first.");
     onStatus("Uploading firmware…");
     await upload(state.firmware, io);
-    state.levels = null; // power-cycled: measure again
+    state.levels = state.calibration = null; // power-cycled: measure again
     log(`firmware uploaded: ${state.firmware.ident}`);
     ui.device.textContent = `${io.name}: firmware running`;
   }
   const area = ui.preset.value === "full"
     ? fullBed(dpi)
     : fromMm(dpi, +ui.left.value, +ui.top.value, +ui.width.value, +ui.height.value);
-  const t = SUPPORTED.includes(dpi) ? build(dpi, area, { grey: ui.mode.value === "grey" }) : retarget(template, area);
+  const fast = ui.fast.checked;
+  const t = SUPPORTED.includes(dpi) ? build(dpi, area, { grey: ui.mode.value === "grey", fast }) : retarget(template, area);
+  const levelsKey = `${dpi}|${fast}|${t.name}`;
   log(`scan: ${t.width} x ${t.height} px at ${dpi} dpi, ${t.grey ? "grey" : "colour"}, from ${t.name}`);
 
   canvas.width = t.width;
@@ -1767,12 +1849,14 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   onStatus("Warming up…");
   const started = performance.now();
   let imaging = false;
-  const levels = state.levels && Date.now() - state.levels.at < LEVELS_FRESH_MS ? state.levels.data : null;
+  const levels = fresh(state.levels) && state.levels.key === levelsKey ? state.levels.data : null;
   if (levels) log("reusing the analog levels measured earlier");
+  const calibration = fresh(state.calibration) ? state.calibration : null;
   state.abort = new AbortController();
   const replayer = new Replayer(t, io, {
     signal: state.abort.signal,
     levels,
+    calibration,
     log,
     onRows: (r) => {
       if (!imaging) {
@@ -1791,7 +1875,8 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   } finally {
     state.abort = null;
   }
-  if (!levels) state.levels = { data: replayer.afe, at: Date.now() };
+  if (!levels) state.levels = { data: replayer.afe, at: Date.now(), key: levelsKey };
+  if (replayer.calibration && replayer.calibration.cal !== calibration?.cal) state.calibration = { ...replayer.calibration, at: Date.now() };
   onFraction(1);
   return { width: t.width, height: t.height, seconds: (performance.now() - started) / 1000 };
 }
@@ -2055,6 +2140,8 @@ start();
           <option value="grey">Grey</option>
         </select></label>
       </div>
+      <label class="check"><input id="fast" type="checkbox" checked> Fast scanning
+        <span class="muted small">(shorter exposure: a third faster, a little more noise at 800-1600 dpi)</span></label>
       <div class="grid">
         <label>Area <select id="area-preset">
           <option value="full">Full bed</option>

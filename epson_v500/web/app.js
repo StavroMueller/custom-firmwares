@@ -12,7 +12,7 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   connect: $("connect"), device: $("device"), firmware: $("firmware"), firmwareName: $("firmware-name"),
   templates: $("templates"), templatesList: $("templates-list"), forget: $("forget"),
-  dpi: $("dpi"), mode: $("mode"), preset: $("area-preset"), areaMm: $("area-mm"),
+  dpi: $("dpi"), mode: $("mode"), fast: $("fast"), preset: $("area-preset"), areaMm: $("area-mm"),
   left: $("left"), top: $("top"), width: $("width"), height: $("height"),
   scan: $("scan"), cancel: $("cancel"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
   canvas: $("canvas"), placeholder: $("placeholder"), unsupported: $("unsupported"),
@@ -22,7 +22,8 @@ const state = {
   io: null,
   firmware: null, // parsed esfw7C.bin
   templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
-  levels: null, // {data, at}: analog levels measured by an earlier scan, reused while fresh
+  levels: null, // {data, at, key}: analog levels measured by an earlier scan, reused while fresh
+  calibration: null, // {key, cal, at}: an earlier scan's calibration, reused for the same window
   abort: null, // AbortController of the scan in progress
   ioLock: Promise.resolve(), // one user of the USB connection at a time
 };
@@ -102,13 +103,16 @@ function refresh() {
 // ---- scanner ----
 
 // Reusing the last measured analog levels skips the scanner's 2.2 s
-// self-measurement (first rows after 3.1 s instead of 5.3 s, same image
-// quality). Measure again after a power cycle and every 10 minutes.
+// self-measurement, and reusing the calibration skips the reference reads
+// and the lamp off/on (another 1 s). On the real scanner the first rows of a
+// 60 x 40 mm scan then appear after 1.8 s instead of 5 s, same image
+// quality. Both are measured again after a power cycle and every 10 minutes.
 const LEVELS_FRESH_MS = 10 * 60 * 1000;
+const fresh = (entry) => entry && Date.now() - entry.at < LEVELS_FRESH_MS;
 
 async function attach(io) {
   state.io = io;
-  state.levels = null;
+  state.levels = state.calibration = null;
   try {
     const s = await status(io);
     ui.device.textContent = `${io.name}: ${isLoaded(s) ? "firmware running" : "needs firmware"}`;
@@ -240,14 +244,16 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
     if (!state.firmware) throw new Error("The scanner needs its firmware: pick Epson's driver download first.");
     onStatus("Uploading firmware…");
     await upload(state.firmware, io);
-    state.levels = null; // power-cycled: measure again
+    state.levels = state.calibration = null; // power-cycled: measure again
     log(`firmware uploaded: ${state.firmware.ident}`);
     ui.device.textContent = `${io.name}: firmware running`;
   }
   const area = ui.preset.value === "full"
     ? fullBed(dpi)
     : fromMm(dpi, +ui.left.value, +ui.top.value, +ui.width.value, +ui.height.value);
-  const t = SUPPORTED.includes(dpi) ? build(dpi, area, { grey: ui.mode.value === "grey" }) : retarget(template, area);
+  const fast = ui.fast.checked;
+  const t = SUPPORTED.includes(dpi) ? build(dpi, area, { grey: ui.mode.value === "grey", fast }) : retarget(template, area);
+  const levelsKey = `${dpi}|${fast}|${t.name}`;
   log(`scan: ${t.width} x ${t.height} px at ${dpi} dpi, ${t.grey ? "grey" : "colour"}, from ${t.name}`);
 
   canvas.width = t.width;
@@ -259,12 +265,14 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   onStatus("Warming up…");
   const started = performance.now();
   let imaging = false;
-  const levels = state.levels && Date.now() - state.levels.at < LEVELS_FRESH_MS ? state.levels.data : null;
+  const levels = fresh(state.levels) && state.levels.key === levelsKey ? state.levels.data : null;
   if (levels) log("reusing the analog levels measured earlier");
+  const calibration = fresh(state.calibration) ? state.calibration : null;
   state.abort = new AbortController();
   const replayer = new Replayer(t, io, {
     signal: state.abort.signal,
     levels,
+    calibration,
     log,
     onRows: (r) => {
       if (!imaging) {
@@ -283,7 +291,8 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   } finally {
     state.abort = null;
   }
-  if (!levels) state.levels = { data: replayer.afe, at: Date.now() };
+  if (!levels) state.levels = { data: replayer.afe, at: Date.now(), key: levelsKey };
+  if (replayer.calibration && replayer.calibration.cal !== calibration?.cal) state.calibration = { ...replayer.calibration, at: Date.now() };
   onFraction(1);
   return { width: t.width, height: t.height, seconds: (performance.now() - started) / 1000 };
 }

@@ -311,6 +311,40 @@ A 1,889 px line hung the scanner mid-scan, so we pad it to a multiple of 32.
 A hung scanner (status `58 81`, busy) needs a power cycle. **A USB port reset
 does not help: the scanner drops off the bus until it is power-cycled.**
 
+## Scanning faster than Epson's driver
+
+Measured on the real scanner, 60 x 40 mm at 200 dpi, warm lamp:
+
+| | first rows | whole scan |
+|---|---|---|
+| Epson's driver (capture) | ~5.2 s | 7.0 s |
+| ours, Epson's sequence | 5.3 s | 6.4 s |
+| + reuse the analog levels | 3.1 s | 4.2 s |
+| + reuse the calibration, fast line period | **1.8 s** | **2.6 s** |
+
+Where a warm scan's time goes with Epson's sequence: the scanner measuring
+its own analog levels, twice (2.3 s); the dark probe, white reference with
+its 51-step move, and dark reference with the lamp off (1.0 s); the move to
+the area (~1 s for 30 mm); speeding up for the scan (~0.7 s); the image.
+
+- **Levels** (`1e 46`/`1e 92`): reusable while the lamp is warm and the line
+  period unchanged. Skipping the measurement leaves the image unchanged.
+- **Calibration**: the probe offsets, white and dark references depend on
+  the sensor window and period, not the area's height or position. Reusing
+  them skips the probe, both references and the lamp off/on. The move to
+  the area then starts from home, 51 steps further. Image unchanged (4.19
+  vs 4.15 against Epson's scan) and in the same place.
+- **Line period**: Epson's periods are longer than the sensor needs. The
+  plugin's own minimum (half the sensor mode's minimum line + 200, rounded
+  up to the Y table's step) is 2,688 at 200 and 400 dpi, 3,840 at 800 and
+  7,416 at 1600. The scanner's level measurement adapts the gain. The image
+  pass gets 18-32% faster. Noise rises 6% at 400 dpi, 14% at 800, 20% at 1600.
+  The motor settings follow from the period with the plugin's formulas,
+  which reproduce every capture.
+- After a scan the scanner sends the carriage home by itself and stays busy
+  meanwhile: 2.2 s from 30 mm, 4.8 s from 200 mm. `1e 86` doesn't answer
+  while it moves. In a booth this overlaps with the next guest stepping up.
+
 ## Buttons, abort and home
 
 From static analysis of the plugin (command helper at 0xc140; nothing run).

@@ -47,3 +47,25 @@ test("1600 dpi: 1.5 motor steps per line, 48 px probe", async () => {
   const probe = dev.sent(0x1e41)[0];
   assert.deepEqual([...probe.subarray(0, 4)], [61, 0, 109, 0]);
 });
+
+test("reusing a calibration skips the reference reads and the lamp off/on", async () => {
+  const area = { x: 100, y: 200, width: 384, height: 20 };
+  const first = new GeometryScanner();
+  const r1 = new Replayer(build(200, area), first, { sleep: async () => {} });
+  const img1 = await r1.run();
+  const second = new GeometryScanner();
+  const r2 = new Replayer(build(200, area), second, { sleep: async () => {}, levels: r1.afe, calibration: r1.calibration });
+  const img2 = await r2.run();
+  const count = (dev, hex) => dev.writes.filter((w) => Buffer.from(w).toString("hex") === hex).length;
+  assert.equal(count(first, "1e47"), 4);
+  assert.equal(count(second, "1e47"), 1); // only the image
+  assert.equal(count(second, "1ea2"), 1); // lamp on once; never off
+  const steps = (dev) => dev.sent(0x1e01).map((m) => new DataView(m.buffer).getUint32(0, true));
+  assert.equal(steps(second).length, 2); // no 51-step move to the white reference
+  assert.equal(steps(second)[0], steps(first)[1] + 51); // so the move to the area goes 51 further
+  assert.deepEqual(second.sent(0x1e42).at(-1), first.sent(0x1e42).at(-1));
+  assert.deepEqual(img2.data, img1.data);
+  // a different window can't reuse it
+  const r3 = new Replayer(build(200, { ...area, width: 800 }), new GeometryScanner(), { sleep: async () => {}, calibration: r1.calibration });
+  assert.equal(r3.reuseCal, null);
+});
