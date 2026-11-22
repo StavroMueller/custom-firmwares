@@ -194,7 +194,9 @@ hardware you own falls under the EULA's personal-use grant.
 - [x] Calibration maths (`v500/calibration.py`) and a template-replay driver
       (`v500/replay.py`) that scans without Epson's plugin; tested against
       a simulated scanner.
-- [ ] First replay scan on the real scanner.
+- [x] First replay scan on the real scanner: 200 dpi colour, full bed, firmware
+      uploaded by our code. It matches Epson's scan of the same page to about 1
+      level darker on average (mean absolute difference 5.5, mostly noise).
 - [ ] Replace the template: generate the scan commands for any region and
       resolution.
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
