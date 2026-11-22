@@ -30,11 +30,11 @@ def write_template(path, width=4, height=2, window=8):
         for direction, data in steps:
             (out if direction == "out" else inp)(data)
 
-    def window_41(lines):
-        return struct.pack("<3H", 0, window, lines) + bytes(16)
+    def window_41(lines, start=0, end=window):
+        return struct.pack("<3H", start, end, lines) + bytes(16)
 
-    def u16_block(lines, value):
-        d = (np.full((lines, window, 3), value, "<u2")).tobytes()
+    def u16_block(lines, value, width=window):
+        d = (np.full((lines, width, 3), value, "<u2")).tobytes()
         return d + trailer(len(d))
 
     lines = height + 10
@@ -47,16 +47,23 @@ def write_template(path, width=4, height=2, window=8):
     cmd(b"\x1e\x92", ("in", b"\x8a\x00" * 3 + bytes(6)))
     cmd(b"\x1e\x31", ("in", ACK), ("out", b"TEMPLATE-AFE"), ("in", ACK))
     cmd(b"\x1e\x42", ("in", ACK), ("out", bytes(18)), ("in", ACK))
-    cmd(b"\x1e\x41", ("in", ACK), ("out", window_41(4)), ("in", ACK))
-    cmd(b"\x1e\x47", ("in", u16_block(4, 1200)))
+    cmd(b"\x1e\x41", ("in", ACK), ("out", window_41(4, 21, 37)), ("in", ACK))   # the dark probe
+    cmd(b"\x1e\x47", ("in", u16_block(4, 1200, 16)))
     cmd(b"\x1e\x42", ("in", ACK), ("out", b"TEMPLATE-OFFSETS!!"), ("in", ACK))
+    cmd(b"\x1e\x41", ("in", ACK), ("out", window_41(32)), ("in", ACK))
     cmd(b"\x1e\x47", ("in", u16_block(32, 40000)))
     cmd(b"\x1e\x42", ("in", ACK), ("out", bytes(18)), ("in", ACK))
+    cmd(b"\x1e\x41", ("in", ACK), ("out", window_41(16)), ("in", ACK))
     cmd(b"\x1e\x47", ("in", u16_block(16, 1300)))
     cmd(b"\x1e\x42", ("in", ACK), ("out", b"TEMPLATE-FINAL!!!!"), ("in", ACK))
     table = np.ones((window, 3), "<u2").tobytes()
-    cmd(b"\x1e\x84", ("in", ACK), ("out", b"\x06\x00\x08\x01\x02\x00\x00\x00"), ("out", table), ("in", ACK))
+    cmd(b"\x1e\x84", ("in", ACK), ("out", b"\x06\x00\x08\x01\x02" + (window * 6).to_bytes(3, "little")),
+        ("out", table), ("in", ACK))
+    ramp = np.linspace(2500, 300, 512).astype("<u2").tobytes()
+    cmd(b"\x1e\x84", ("in", ACK), ("out", b"\x05\x00\x00\x01\x02\x00\x04\x00"), ("out", ramp), ("in", ACK))
+    cmd(b"\x1e\x01", ("in", ACK), ("out", struct.pack("<I4H", 194, 0, 255, 255, 0x10)), ("in", ACK))
     cmd(b"\x1e\x41", ("in", ACK), ("out", window_41(lines)), ("in", ACK))
+    cmd(b"\x1e\x01", ("in", ACK), ("out", struct.pack("<I4H", lines * 12 + 120, 120, 511, 511, 0)), ("in", ACK))
     image = (np.arange(lines * window * 3) % 251).astype(np.uint8).tobytes()
     cmd(b"\x1e\x47", ("in", image + trailer(len(image))))
     cmd(b"\x1b\x03", ("in", b"\x18\x81"))
@@ -135,13 +142,14 @@ def test_replaying_a_real_capture(path):
 def test_booth_backend_scans_through_a_template(tmp_path):
     from v500.scanner import ScanSettings
 
+    from fake_geometry_scanner import GeometryScanner
+
     write_template(tmp_path / "t.usblog")
-    t = replay.Template.load(tmp_path / "t.usblog")
     scanner = replay.ReplayScanner.from_dir(tmp_path)
-    scanner.open_transport = lambda: TemplateScanner(t)
-    scan = scanner.scan(ScanSettings(dpi=200))
+    scanner.open_transport = lambda: GeometryScanner(ratio=1)
+    scan = scanner.scan(ScanSettings(dpi=200, area_mm=(1, 2, 0.5, 0.4)))   # 3 x 3 px
     strips = list(scan.strips)
-    assert (scan.width, scan.height) == (4, 2)
-    assert sum(s.shape[0] for s in strips) == 2 and strips[0].shape[1:] == (4, 3)
+    assert (scan.width, scan.height) == (3, 3)
+    assert sum(s.shape[0] for s in strips) == 3 and strips[0].shape[1:] == (3, 3)
     with pytest.raises(ValueError, match="no template for 400"):
         scanner.scan(ScanSettings(dpi=400))

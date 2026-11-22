@@ -60,7 +60,7 @@ class Booth:
     async def _scan(self, photo_id: str) -> None:
         rotate = self.config.rotate
         try:
-            scan = await asyncio.to_thread(self.scanner.scan, ScanSettings(dpi=self.config.dpi))
+            scan = await asyncio.to_thread(self.scanner.scan, ScanSettings(dpi=self.config.dpi, area_mm=self.config.area_mm))
             width, height = upright_size(scan.width, scan.height, rotate)
             await self._send_json(type="scan_started", id=photo_id, width=width, height=height)
 

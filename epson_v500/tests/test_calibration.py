@@ -14,34 +14,34 @@ def test_probe_offsets_are_the_mean_per_colour():
     assert calibration.probe_offsets(probe).tolist() == [1200, 1500, 1450]
 
 
-def test_table_holds_each_pixels_white_above_the_base():
+def test_table_packs_white_above_dark():
     rng = np.random.default_rng(1)
     w = np.linspace(30000, 50000, 100)[None, :, None] + rng.normal(0, 5, (32, 100, 3))
     white = np.clip(w, 0, 65535).astype(np.uint16)
     dark = np.full((16, 100, 3), 1300, np.uint16)
     used = np.ones(100, bool)
     used[80:] = False
-    cal = calibration.compute(white, dark, np.array([1250, 1250, 1250]), used)
-    assert cal.offsets.tolist() == [1300 - calibration.OFFSET_BELOW_DARK] * 3
+    cal = calibration.compute(white, dark, used)
+    assert cal.dark_min.tolist() == [1300] * 3 and (cal.k, cal.d) == (3, 0)   # flat dark: 5 bits spare
     assert (cal.table[80:] == 0).all()
-    # The table rises with the white level, and scaled back it spans the same range.
-    mean = white.astype(float).mean(0)
-    span = (cal.table[:80].astype(float) / cal.scale)
-    assert np.allclose(np.diff(span[[0, 79]], axis=0), np.diff(mean[[0, 79]], axis=0), atol=2)
-    assert cal.table.max() <= 65535
+    white_part = (cal.table[:80].astype(int) >> (8 - cal.k)) << cal.h
+    spread = np.diff(white.astype(float).mean(0)[[0, 79]], axis=0)
+    assert np.allclose(np.diff(white_part[[0, 79]], axis=0), spread, atol=2 ** cal.h + 10)
+    assert cal.window_bytes() == (0x83, cal.h << 4)
 
 
-def test_scale_is_the_largest_power_of_two_that_fits():
+def test_white_shift_is_the_smallest_that_fits():
     used = np.ones(10, bool)
     dark = np.zeros((16, 10, 3), np.uint16)
-    for spread, scale in ((35000, 1), (15000, 4), (7000, 8)):
+    for spread, h in ((35000, 5), (15000, 3), (7000, 2)):   # white range < 2^11 << h
         white = np.zeros((32, 10, 3), np.uint16)
         white[:] = np.linspace(20000, 20000 + spread, 10)[None, :, None]
-        assert calibration.compute(white, dark, np.zeros(3), used).scale == scale
+        cal = calibration.compute(white, dark, used)
+        assert (cal.k, cal.h) == (3, h) and cal.table.max() <= 65535
 
 
 def test_param_blocks_repeat_each_offset_twice():
-    cal = calibration.Calibration(np.array([1, 2, 3]), np.array([10, 20, 30]), np.zeros((1, 3), np.uint16), 1)
+    cal = calibration.Calibration(np.array([1, 2, 3]), np.array([10, 20, 30]), np.zeros((1, 3), np.uint16), 2, 6, 0)
     assert struct.unpack("<9H", cal.param_1e42()) == (1, 2, 3, 10, 10, 20, 20, 30, 30)
     assert struct.unpack("<9H", calibration.offsets_param(np.array([10, 20, 30]))) == (0, 0, 0, 10, 10, 20, 20, 30, 30)
 
@@ -60,12 +60,15 @@ def test_close_to_epsons_values(path):
     epson = [g.params[0] for g in t.groups if g.command == b"\x1e\x42"]
     ours = np.array(struct.unpack("<9H", r.cal.param_1e42()), int)
     theirs = np.array(struct.unpack("<9H", epson[3]), int)
-    assert np.abs(ours[:3] - theirs[:3]).max() < 250        # base, of 25,000-44,000
-    assert np.abs(ours[3:] - theirs[3:]).max() < 10         # black offsets
+    assert (ours[:3] == theirs[:3]).all()                    # white minimums: exact
+    assert np.abs(ours[3:] - theirs[3:]).max() <= 2          # dark minimums
+    window = [g.params[0] for g in t.groups if g.command == b"\x1e\x41"][-1]
+    assert r.cal.window_bytes() == (window[11], window[15])  # how the table is packed: exact
     table = [g.params[1] for g in t.groups if g.command == b"\x1e\x84" and g.params[0][0] == 6][0]
     theirs_t = np.frombuffer(table, "<u2").reshape(-1, 3).astype(int)
-    diff = np.abs(r.cal.table.astype(int) - theirs_t)[t.used] / r.cal.scale
-    assert diff.mean() < 200                                 # of ~30,000: sensor noise
-    assert ((r.cal.table == 0) == (theirs_t == 0)).all()
+    ours_t = r.cal.table.astype(int)
+    shift = 8 - r.cal.k
+    assert ((ours_t >> shift) == (theirs_t >> shift)).all()  # white part: exact
+    assert np.abs(ours_t - theirs_t).mean() < 1.5            # dark part: within about a level
     probe = np.array(struct.unpack("<9H", epson[1])[3::2])
     assert np.abs(r.probe_off - probe).max() < 40

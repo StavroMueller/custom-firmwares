@@ -18,6 +18,7 @@ BED_HEIGHT_IN = 297 / 25.4
 @dataclass(frozen=True)
 class ScanSettings:
     dpi: int = 150
+    area_mm: tuple[float, float, float, float] | None = None   # left, top, width, height; None = full bed
 
 
 @dataclass

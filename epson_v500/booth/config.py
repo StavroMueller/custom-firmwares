@@ -15,6 +15,7 @@ class Config:
     fake_images: Path | None = None    # folder of JPEGs for the fake scanner to replay
     templates: Path | None = None      # replay: folder of captures of Epson's driver
     firmware: Path | None = None       # replay: esfw7C.bin, uploaded after a power cycle
+    area_mm: tuple[float, float, float, float] | None = None  # left, top, width, height; None = full bed
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -28,7 +29,10 @@ class Config:
             fake_images=Path(p) if (p := env("BOOTH_FAKE_IMAGES")) else None,
             templates=Path(p) if (p := env("BOOTH_TEMPLATES")) else None,
             firmware=Path(p) if (p := env("BOOTH_FIRMWARE")) else None,
+            area_mm=tuple(float(v) for v in p.split(",")) if (p := env("BOOTH_AREA")) else None,
         )
+        if config.area_mm is not None and len(config.area_mm) != 4:
+            raise ValueError("BOOTH_AREA is left,top,width,height in mm, e.g. 20,30,150,100")
         if config.rotate not in (0, 90, 180, 270):
             raise ValueError(f"BOOTH_ROTATE must be 0, 90, 180 or 270, not {config.rotate}")
         return config

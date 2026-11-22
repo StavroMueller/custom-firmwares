@@ -6,8 +6,9 @@ with four changes, all computed from what the scanner reports live:
 
 - the analog levels (`1e 31`): the scanner's own measurement (`1e 92`),
 - the probe offsets (second `1e 42`): from the dark probe read,
-- the base levels and offsets (last `1e 42`) and the shading table
-  (`1e 84` type 06): from the white and dark reference reads.
+- the white and dark minimums (last `1e 42`), the shading table (`1e 84`
+  type 06) and how it is packed (image-pass `1e 41` bytes 11 and 15): from
+  the white and dark reference reads.
 
 Status polls are not replayed blindly: `1e 04` is polled until it says ready,
 `1b 03` until the busy bit clears.
@@ -82,6 +83,7 @@ class Template:
     grey: bool
     windows: list[int] = field(default_factory=list)   # sensor width of each 1e 47 read
     used: np.ndarray | None = None                      # pixels Epson's shading table filled
+    crop_x: int = 0                                     # raw pixels to drop at the left
 
     @classmethod
     def load(cls, path: str | Path) -> "Template":
@@ -117,6 +119,7 @@ class Replayer:
         self.probe_off: np.ndarray | None = None
         self.cal: calibration.Calibration | None = None
         self.count: dict[bytes, int] = {}
+        self.image_window = sum(g.command == b"\x1e\x41" for g in template.groups) - 1
 
     def run(self) -> np.ndarray:
         groups = self.t.groups
@@ -135,7 +138,8 @@ class Replayer:
                 self.replay(g)
             i += 1
         image = raw.payload(self.reads[-1])
-        return raw.decode(image, self.t.width, self.t.height, dpi=self.t.yres, grey=self.t.grey)
+        x = self.t.crop_x
+        return raw.decode(image, x + self.t.width, self.t.height, dpi=self.t.yres, grey=self.t.grey)[:, x:]
 
     def replay(self, g: Group) -> None:
         n = self.count.get(g.command, 0)
@@ -165,6 +169,10 @@ class Replayer:
             params[0] = self.calibrate().param_1e42()
         elif g.command == b"\x1e\x84" and params and params[0][0] == 6:
             params[1] = self.calibrate().table_bytes()
+        elif g.command == b"\x1e\x41" and n == self.image_window:
+            p = bytearray(params[0])
+            p[11], p[15] = self.calibrate().window_bytes()
+            params[0] = bytes(p)
         return params
 
     def after(self, g: Group, n: int, replies: list[bytes]) -> None:
@@ -186,8 +194,9 @@ class Replayer:
             w = self.t.windows
             white = calibration.u16_rgb(raw.payload(self.reads[1]), w[1])
             dark = calibration.u16_rgb(raw.payload(self.reads[2]), w[2])
-            self.cal = calibration.compute(white, dark, self.need(self.probe_off, "probe"), self.t.used)
-            self.log(f"calibration: base {self.cal.base} offsets {self.cal.offsets} scale {self.cal.scale}")
+            self.cal = calibration.compute(white, dark, self.t.used)
+            c = self.cal
+            self.log(f"calibration: white {c.white_min} dark {c.dark_min} k {c.k} h {c.h} d {c.d}")
         return self.cal
 
     def poll_ready(self) -> None:
@@ -222,7 +231,8 @@ class ReplayScanner:
     """The booth's `Scanner` backed by template replay.
 
     `templates` maps a resolution to a template capture. Each scan opens the
-    scanner, uploads the firmware if it was power-cycled, and replays.
+    scanner, uploads the firmware if it was power-cycled, and replays the
+    template retargeted to the scan area (v500/geometry.py).
     """
 
     def __init__(self, templates: dict[int, Path], firmware_path: Path | None = None,
@@ -250,9 +260,13 @@ class ReplayScanner:
         from . import firmware
         from .scanner import Scan
 
+        from .geometry import Region, retarget
+
         template = self.templates.get(settings.dpi)
         if template is None:
             raise ValueError(f"no template for {settings.dpi} dpi; have {sorted(self.templates)}")
+        area = Region.from_mm(settings.dpi, *settings.area_mm) if settings.area_mm else Region.full_bed(settings.dpi)
+        template = retarget(template, area)
         if self.open_transport is None:
             from .usb import UsbTransport
             transport = UsbTransport.open()
@@ -287,9 +301,14 @@ def main() -> None:
     parser.add_argument("template", help="usblog of one scan, from tools/capture")
     parser.add_argument("out", help="PNG to write")
     parser.add_argument("--firmware", type=Path, help="esfw7C.bin, uploaded if the scanner needs it")
+    parser.add_argument("--area", type=float, nargs=4, metavar=("LEFT", "TOP", "WIDTH", "HEIGHT"),
+                        help="scan this area, in mm, instead of the template's")
     args = parser.parse_args()
 
     template = Template.load(args.template)
+    if args.area:
+        from .geometry import Region, retarget
+        template = retarget(template, Region.from_mm(template.yres, *args.area))
     print(f"template: {template.width} x {template.height} at {template.yres} dpi"
           f"{' grey' if template.grey else ''}, {len(template.groups)} commands")
     with UsbTransport.open() as io:

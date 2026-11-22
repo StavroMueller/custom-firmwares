@@ -26,6 +26,7 @@ python -m booth                   # http://<host>:8000, open it on the iPad
 | `BOOTH_TEMPLATES` | none | `replay`: folder of captures of Epson's driver, one per dpi |
 | `BOOTH_FIRMWARE` | none | `replay`: your `esfw7C.bin`, uploaded after a power cycle |
 | `BOOTH_DPI` | `150` | scan resolution |
+| `BOOTH_AREA` | full bed | `replay`: scan area in mm, `left,top,width,height` |
 | `BOOTH_ROTATE` | `0` | degrees clockwise to turn scans upright, for the vertical mount |
 | `BOOTH_PHOTOS_DIR` | `photos` | where scans are saved |
 | `BOOTH_FAKE_SECONDS` | `8` | how long a fake scan takes |
@@ -56,6 +57,7 @@ To scan with our own code, replay a capture of Epson's driver (see
 
 ```sh
 python -m v500.replay captures/<ts>/02-color-200-full.usblog scan.png --firmware /path/to/esfw7C.bin
+python -m v500.replay captures/<ts>/02-color-200-full.usblog face.png --area 20 30 150 100   # mm
 ```
 
 Before firmware, the scanner enumerates as `04b8:0130` "EPSON Scanner",
@@ -197,8 +199,12 @@ hardware you own falls under the EULA's personal-use grant.
 - [x] First replay scan on the real scanner: 200 dpi colour, full bed, firmware
       uploaded by our code. It matches Epson's scan of the same page to about 1
       level darker on average (mean absolute difference 5.5, mostly noise).
-- [ ] Replace the template: generate the scan commands for any region and
-      resolution.
+- [x] Any scan area at a template's resolution (`v500/geometry.py`):
+      checked on the real scanner against Epson's scan of the same area.
+- [x] Epson's packed shading table and the `1e 41` bytes that describe it,
+      from static analysis of the plugin.
+- [ ] WebUSB page: the driver in plain JavaScript, in the browser.
+- [ ] Resolutions without a template (1600 dpi; motor tables).
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.
 - [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).

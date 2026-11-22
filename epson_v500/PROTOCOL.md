@@ -177,24 +177,31 @@ the full bed, 2,048 for a 60 mm region at 200 dpi), 6 bytes per pixel:
 | white | window x 32 lines | after a 51-step move, offsets applied | per-pixel white level |
 | dark | window x 16 lines | after `1e a2 00` (lamp off), `1e 42` zero | final offsets |
 
-Then the last `1e 42` and the shading table:
+Then the last `1e 42`, the shading table, and two bytes of the image pass's
+`1e 41`. The method comes from Epson's plugin (static analysis:
+`libesint7C.so` functions at 0x102b0, 0xfc10 and 0xfec0). Over the used
+sensor pixels:
 
-- **offsets** (bytes 6-17, each colour twice): the dark read's mean, minus
-  about 11.
-- **base** (bytes 0-5, u16 per colour): roughly the dimmest used pixel's
-  white level, plus about 165, converted to the final offsets.
+- **white line**: the 32 white lines averaged in 4 groups of 8, keeping
+  the brightest of the 4 per pixel, floored.
+- **dark line**: the 16 dark lines averaged, then smoothed along the line
+  (a moving average about 51 pixels wide, fitted; the plugin's filter at
+  0x3c9f0 is not fully decoded), floored.
+- **`1e 42`**: the white line's minimum per colour (bytes 0-5), then the
+  dark line's minimum per colour, each twice (bytes 6-17).
+- **packing**: from the dark line's largest range across pixels, D: `k` = 3,
+  2, 1 or 0 for D up to 31, 63, 127 or 255; above that `k` = 0 and the dark
+  shift `d` is the smallest with D < 256 << d. From the white line's largest
+  range, W: the white shift `h` is the smallest with W < 2^(k+8) << h.
 - **shading table** (`1e 84` type 06): u16 per sensor pixel per colour,
-  interleaved R G B. Entry = `scale x (white[x] - base + ~190)`, in the
-  white read's units. `scale` is one power of two for all colours, the
-  largest that keeps every entry under 65,536: 1 for the full bed, 4 for the
-  regions captured. Entries for sensor pixels the scan doesn't use are 0.
+  interleaved R G B, `((white - white_min) >> h) << (8 - k) | (dark -
+  dark_min) >> d`. Entries for pixels the scan doesn't use are 0.
+- **image-pass `1e 41`**: byte 11 = `0x80 | k`, byte 15 = `h << 4 | d`. The
+  scanner needs these to unpack the table. With the wrong ones the image
+  comes out about 10% darker.
 
-So the scanner rebuilds each pixel's white level as base + entry / scale.
-How it learns `scale` is not known; nothing in the captures changes with it.
-
-Our values land within sensor noise of Epson's: base within 150, offsets
-within 5, table entries within about 110 of ~30,000 on average. Epson's
-table is a little smoother than a 32-line mean, so it may average more data.
+Ours match Epson's on seven captures: `k`, `h`, `d`, the white minimums and
+the white half of every entry exactly; the dark minimums within 1 or 2.
 
 The other uploaded tables are not calibration and are replayed as captured:
 
@@ -207,9 +214,36 @@ The other uploaded tables are not calibration and are replayed as captured:
 ## Scanning without Epson's plugin
 
 `v500/replay.py` replays a capture of Epson's driver as a template, with the
-analog levels, offsets, base and shading table computed live (above), and
-status polls done properly. Against a simulated scanner it reproduces all
+analog levels, offsets, shading table and its packing computed live
+(above), and status polls done properly. `v500/geometry.py` retargets it to
+any scan area (below). Against a simulated scanner it reproduces all
 seven captured scans exactly (`tests/test_replay.py`).
+
+## Scan geometry
+
+`v500/geometry.py` rewrites a template for any scan area at its resolution.
+Checked by rebuilding each capture from itself (identical commands) and from
+the other captures, and on the real scanner.
+
+- **Sensor window** (`1e 41` bytes 0-3): in sensor units. One pixel is 8/3
+  units at 200 dpi, 4/3 at 400 and 1 at 800. Start = origin + x offset in
+  units, with origin 143 at 200/400 dpi and 213 at 800. At 200 and 400 dpi
+  the raw line is the width rounded up to a multiple of 384 pixels; at 800
+  it is the width. The reference reads and the shading table are
+  window-sized. The shading table covers `ceil(width x units) + 3` pixels
+  (at 800: the whole window).
+- **Image pass** (`1e 41`): bytes 4-5 lines = height + red line lag, byte 18
+  = lines per 51,200-byte block. Each image read is one block.
+- **`1e 01` moves**: bytes 6-7 and 8-9 are the ramp lengths minus one, as
+  entries from the start of the type `05` table uploaded just before. A move
+  covers its step count plus both ramps. The move to the top of the area
+  keeps start + y x (2400 / dpi) steps and uses the longest ramp that fits.
+- **Scan move**: lines x (2400 / dpi) + bytes 4-5 (120 at 200 dpi, 126 at
+  400 and 800).
+- **`1e 57`**: field 7 is two bytes from the frontend. Byte 28 is lines per
+  transfer; on all captures it equals floor(65,536 / output bytes per line),
+  rounded down to even. Byte 29 is the gamma setting (4).
+- Epson's full bed is 1,696 x 2,339 px at 200 dpi (8.48 x 11.7 in).
 
 ## The `1e` commands in a scan, in order
 
