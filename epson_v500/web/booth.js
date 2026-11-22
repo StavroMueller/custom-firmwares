@@ -3,19 +3,18 @@
 // Full screen, countdown with beeps, the scanner's own buttons / Space /
 // Enter / a foot pedal to scan, effects and a framed caption, a gallery
 // strip, a slideshow window for a second screen, printing, saving to a
-// folder, a warm lamp, and a clear screen when the scanner needs a person.
+// folder, and a clear screen when the scanner needs a person.
 // An operator panel (press O, or tap the top-left corner three times) has
 // the counters and the clean-up buttons.
 
 import { compose, EFFECTS, applyEffect } from "./effects.js";
-import { lampIsOn, lampOn, pressedButton, status } from "./v500/device.js";
+import { pressedButton, status } from "./v500/device.js";
 
 const $ = (id) => document.getElementById(id);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const SETTINGS = "v500-booth-settings";
 const GALLERY_SIZE = 24;
-const LAMP_CHECK_MS = 60_000; // keep the lamp warm: check once a minute while idle
 const STUCK_AFTER_MS = 20_000; // busy this long while idle: an earlier scan never finished
 
 // ctx: {state, performScan(canvas, onStatus), exclusive(fn), log(line), recalibrate()}
@@ -35,7 +34,7 @@ export function setupBooth(ctx) {
   const booth = {
     open: false, busy: false, dir: null, wakeLock: null, gallery: [], saved: [], slideshow: null,
     scans: 0, failures: 0, lastError: "", sinceClean: 0, needsClean: false, attention: null,
-    lastLampCheck: 0, busySince: 0,
+    busySince: 0,
   };
 
   // ---- settings, remembered in this browser ----
@@ -281,27 +280,20 @@ export function setupBooth(ctx) {
     }
   }
 
-  // ---- watching the scanner while idle: buttons, lamp, stuck ----
+  // ---- watching the scanner while idle: buttons, stuck ----
+  // (The lamp is left to the scanner: a scan after it was off 4 minutes is
+  // as fast as one with it on, so there's nothing to gain keeping it lit.)
 
   async function watch() {
     while (booth.open) {
       if (!booth.busy && state.io) {
         try {
           const now = Date.now();
-          const { button, busy, lamp } = await ctx.exclusive(async () => {
-            const io = state.io;
-            const s = await status(io);
+          const { button, busy } = await ctx.exclusive(async () => {
+            const s = await status(state.io);
             const busy = Boolean(s[0] & 0x40);
-            const button = busy ? 0 : await pressedButton(io);
-            let lamp = null;
-            if (!busy && now - booth.lastLampCheck > LAMP_CHECK_MS) {
-              booth.lastLampCheck = now;
-              lamp = await lampIsOn(io);
-              if (!lamp) await lampOn(io);
-            }
-            return { button, busy, lamp };
+            return { button: busy ? 0 : await pressedButton(state.io), busy };
           });
-          if (lamp === false) log("lamp was off: switched it on to keep it warm");
           if (busy) {
             booth.busySince ||= now;
             if (now - booth.busySince > STUCK_AFTER_MS && booth.attention !== "stuck") attention("stuck");
@@ -392,7 +384,6 @@ export function setupBooth(ctx) {
       await el.root.requestFullscreen();
     } catch { /* fullscreen refused: the overlay still covers the window */ }
     keepAwake();
-    booth.lastLampCheck = 0; // warm the lamp now
     watch();
   });
 

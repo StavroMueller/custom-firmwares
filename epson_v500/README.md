@@ -44,8 +44,8 @@ Start booth gives a full-screen view with a big Scan button:
   chime when done. Escape cancels a scan or leaves.
 - A strip of recent photos; "Open slideshow window" shows them on a second
   screen, newest first.
-- The computer stays awake (Wake Lock) and the lamp stays warm, so no slow
-  cold scan.
+- The computer stays awake (Wake Lock). The lamp is left to the scanner:
+  it needs no warm-up (a scan after it was off 4 minutes is as fast).
 - If the scanner is unplugged or stuck, a full-screen message says what to
   do, and the booth resumes by itself when it's back. A cancelled or failed
   scan is aborted on the scanner, so it doesn't stay stuck.

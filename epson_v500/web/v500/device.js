@@ -53,15 +53,15 @@ export async function home(io, { sleep = sleepMs } = {}) {
 }
 
 // Is the lamp on? `1e a1`, no ACK, one byte: 01 on, 00 off (checked on the
-// real scanner; it stays on while idle once switched on).
+// real scanner). The scanner switches it off by itself when idle.
 export async function lampIsOn(io) {
   await io.write(new Uint8Array([0x1e, 0xa1]));
   const r = await io.read(1);
   return Boolean(r[0] & 0x01);
 }
 
-// Switch the lamp on (`1e a2 01`), as every scan does first. A warm lamp
-// avoids the slow first scan after it has been off.
+// Switch the lamp on (`1e a2 01`), as every scan does first. There is no
+// warm-up to gain: a scan after the lamp was off 4 minutes is as fast.
 export async function lampOn(io) {
   for (const part of [[0x1e, 0xa2], [0x01]]) {
     await io.write(new Uint8Array(part));

@@ -363,6 +363,9 @@ Checked on the real scanner where noted.
   plugin does this before a scan if the carriage isn't at 0. After a normal
   scan the scanner returns home by itself, which keeps it busy for ~2.7 s.
 - **Reset**: `1b 40` (ESC @) + ACK, which the plugin sends at session start.
+- **Lamp**: `1e a1` (no ACK, one byte) reads 01 on, 00 off; `1e a2 01`/`00`
+  switches it. The scanner switches it off by itself when idle. It needs no
+  warm-up: a scan after 4 minutes off was as fast as with it lit.
 - `1b 03` byte 0: 0x80 fatal error, 0x40 busy, 0x10 firmware loaded, 0x02
   short wait, 0x01 warming up. Byte 1 & 7: hardware variant; & 3 nonzero:
   transparency unit present.
