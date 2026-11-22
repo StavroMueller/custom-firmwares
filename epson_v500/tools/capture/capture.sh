@@ -6,7 +6,9 @@
 # Power-cycle the scanner first, so the capture starts from "no firmware".
 # Epson's driver runs in a container (tools/capture/Dockerfile); the host
 # records bus traffic with usbmon. Output goes to captures/<timestamp>/:
-#   NN-step.pcap   full USB traffic of the scanner's bus (open in Wireshark)
+#   NN-step.usblog every bulk transfer Epson's driver made, with full data
+#   NN-step.pcap   USB traffic of the scanner's bus (large transfers have no data
+#                  on IOMMU machines; the usblog has them)
 #   NN-step.log    epkowa debug log
 #   *.png          the scans
 # The pcaps contain Epson's firmware bytes: they are gitignored, never commit them.
@@ -30,7 +32,7 @@ trap 'rm -rf "$ctx"' EXIT
 tar xzf "$BUNDLE" -C "$ctx"
 mkdir "$ctx/debs"
 find "$ctx" -type f -name '*.deb' -not -path "$ctx/debs/*" -exec cp {} "$ctx/debs/" \;
-cp "$HERE/Dockerfile" "$HERE/scan.sh" "$ctx/"
+cp "$HERE/Dockerfile" "$HERE/scan.sh" "$HERE/usblog.c" "$ctx/"
 chmod +x "$ctx/scan.sh"
 docker build -q -t "$IMAGE" "$ctx" >/dev/null
 echo "built image $IMAGE"
@@ -49,7 +51,8 @@ step() {
     sleep 1
     local rc=0
     docker run --rm --device "/dev/bus/usb/$BUS/$DEV" -v "$OUT:/out" \
-        -e SANE_DEBUG_EPKOWA=128 -e SANE_DEBUG_DLL=4 "$IMAGE" "$@" >"$OUT/$name.out" 2>"$OUT/$name.log" || rc=$?
+        -e SANE_DEBUG_EPKOWA=128 -e SANE_DEBUG_DLL=4 \
+        -e LD_PRELOAD=/usr/local/lib/usblog.so -e "USBLOG=/out/$name.usblog" "$IMAGE" "$@" >"$OUT/$name.out" 2>"$OUT/$name.log" || rc=$?
     sleep 1
     kill "$pid"; wait "$pid" 2>/dev/null || true
     echo "$rc" >"$OUT/$name.exit"
@@ -57,6 +60,7 @@ step() {
 }
 
 step 01-list list
+step 01-options options
 step 02-scan-75dpi 75 02-scan-75dpi.png
 step 03-scan-300dpi 300 03-scan-300dpi.png
 

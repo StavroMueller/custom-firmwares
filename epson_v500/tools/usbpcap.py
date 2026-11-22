@@ -1,10 +1,12 @@
-"""Turn a usbmon pcap into a readable list of one device's bulk transfers.
+"""Turn a USB capture into a readable list of the V500's bulk transfers.
 
-    python tools/usbpcap.py captures/<ts>/02-scan-75dpi.pcap            # pick the V500 by itself
-    python tools/usbpcap.py FILE --device 5 --max-bytes 64
+    python tools/usbpcap.py captures/<ts>/02-scan-75dpi.usblog
+    python tools/usbpcap.py captures/<ts>/02-scan-75dpi.pcap --device 5 --max-bytes 64
 
-Only the standard library. Reads the pcap tcpdump writes from usbmonN
-(link type 220, LINUX_USB_MMAPPED, or 189, LINUX_USB).
+Only the standard library. Reads two formats:
+- `.usblog` from tools/capture/usblog.c: every transfer with full data.
+- `.pcap` that tcpdump writes from usbmonN (link type 220 or 189). On IOMMU
+  machines large transfers come with no data; their size is still shown.
 """
 
 import argparse
@@ -62,6 +64,28 @@ def transfers(path: str) -> Iterator[Transfer]:
             yield Transfer(t, dev, ep & 0x7F, not is_in, pkt[header_len(linktype):])
 
 
+USBLOG_MAGIC = b"V5USBLOG"
+USBLOG_RECORD = struct.Struct("<dBBiII")
+
+
+def usblog_transfers(path: str) -> Iterator[Transfer]:
+    with open(path, "rb") as f:
+        if f.read(8) != USBLOG_MAGIC:
+            raise SystemExit(f"{path}: not a usblog file")
+        while head := f.read(USBLOG_RECORD.size):
+            if len(head) < USBLOG_RECORD.size:
+                break  # the writer was killed mid-record
+            t, ep, _kind, _rc, requested, actual = USBLOG_RECORD.unpack(head)
+            is_in = bool(ep & 0x80)
+            data = f.read(actual if is_in else requested)
+            yield Transfer(t, 0, ep & 0x7F, not is_in, data)
+
+
+def is_usblog(path: str) -> bool:
+    with open(path, "rb") as f:
+        return f.read(8) == USBLOG_MAGIC
+
+
 def find_v500(path: str) -> int | None:
     """The device number that answered with vendor 04b8 product 0130."""
     for linktype, _, pkt in packets(path):
@@ -82,13 +106,17 @@ def main() -> None:
     parser.add_argument("--max-bytes", type=int, default=32, help="hex bytes to show per transfer")
     args = parser.parse_args()
 
-    device = args.device or find_v500(args.pcap)
-    if device is None:
-        raise SystemExit("no bulk traffic found")
+    if is_usblog(args.pcap):
+        source, device = usblog_transfers(args.pcap), 0  # only the scanner is logged
+    else:
+        device = args.device or find_v500(args.pcap)
+        if device is None:
+            raise SystemExit("no bulk traffic found")
+        source = transfers(args.pcap)
     print(f"# device {device}")
     start = None
     total = {True: 0, False: 0}
-    for tr in transfers(args.pcap):
+    for tr in source:
         if tr.device != device or not tr.data:
             continue
         start = start if start is not None else tr.time
