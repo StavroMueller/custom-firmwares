@@ -36,3 +36,14 @@ test("stopping a scan mid-image aborts it on the scanner", async () => {
   assert.ok(last.includes("1e18"), "sent 1e 18");
   assert.equal(last.at(-1), "1b03"); // then waited for idle
 });
+
+test("1600 dpi: 1.5 motor steps per line, 48 px probe", async () => {
+  const dev = new GeometryScanner();
+  const area = { x: 100, y: 101, width: 640, height: 33 };
+  const img = await new Replayer(build(1600, area), dev, { sleep: async () => {} }).run();
+  assert.deepEqual([img.width, img.height], [640, 33]);
+  const move = dev.sent(0x1e01).at(-1);
+  assert.equal(new DataView(move.buffer).getUint32(0, true), Math.ceil((33 + 80) * 1.5) + 30);
+  const probe = dev.sent(0x1e41)[0];
+  assert.deepEqual([...probe.subarray(0, 4)], [61, 0, 109, 0]);
+});

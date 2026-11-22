@@ -37,7 +37,7 @@ export class TemplateScanner {
   }
 }
 
-const RATIO = { 200: 8 / 3, 400: 4 / 3, 800: 1 };
+const RATIO = { 200: 8 / 3, 400: 4 / 3, 800: 1, 1600: 1 };
 
 function trailer(n) {
   return new Uint8Array([0x02, n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, 0, 0, 0x80, 0]);

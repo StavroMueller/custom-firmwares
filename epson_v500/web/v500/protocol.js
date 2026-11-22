@@ -11,23 +11,31 @@
 // retargets captured templates.
 
 import { setU16, setU32 } from "./bytes.js";
-import { retarget } from "./geometry.js";
+import { retarget, scanSteps } from "./geometry.js";
 import { lineShift } from "./raw.js";
 import { CMD, POLL_READY, STATUS, Template } from "./replay.js";
 
 const ACK = new Uint8Array([0x06]);
 
-// Per-resolution constants, from captures of Epson's driver at each resolution.
+// Per-resolution constants: 200-800 measured from captures of Epson's driver
+// (and matching Epson's tables), 1600 from the plugin's tables and formulas
+// alone (static analysis: PROTOCOL.md, "Where the settings come from").
+// lines: the line rate as lo/hi of 2400 steps per inch (1600 dpi: 2/3).
 export const RESOLUTIONS = {
-  200: { timing: 0x0f00, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, slowSpeed: 160,
+  200: { lines: [1, 12], timing: 0x0f00, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, slowSpeed: 160,
          scanRamp: { start: 2500, cruise: 320, n: 512 }, scanRampUsed: 512, scanTail: 120, scanFlags: 0,
          ratio: 8 / 3, origin: 143, toTop: 706 },
-  400: { timing: 0x0cc0, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, slowSpeed: 136,
+  400: { lines: [1, 6], timing: 0x0cc0, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, slowSpeed: 136,
          scanRamp: { start: 1249, cruise: 272, n: 512 }, scanRampUsed: 256, scanTail: 126, scanFlags: 2,
          ratio: 4 / 3, origin: 143, toTop: 956 },
-  800: { timing: 0x1500, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, slowSpeed: 224,
+  800: { lines: [1, 3], timing: 0x1500, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, slowSpeed: 224,
          scanSpeed: 112, scanRampUsed: 0, scanTail: 126, scanFlags: 8,
          ratio: 1, origin: 213, toTop: 1212 },
+  // Not yet checked against a capture. The origin is the plugin's 431 less
+  // the 1-2 units our captures show at the other resolutions (doubled).
+  1600: { lines: [2, 3], timing: 0x2a60, afe: 2, probe: [61, 109], imageMode: 0x0201, slowSpeed: 452,
+          scanSpeed: 452, scanRampUsed: 0, scanTail: 30, scanFlags: 8,
+          ratio: 1, origin: 427, toTop: 1308 },
 };
 export const MOVE_RAMP = { start: 2500, cruise: 160, n: 512 }; // the move to the top of the area
 const SETTLE = new Uint8Array([0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]); // 1e 43
@@ -101,7 +109,8 @@ class Builder {
 function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   const r = RESOLUTIONS[dpi];
   if (!r) throw new Error(`no settings for ${dpi} dpi yet; have ${Object.keys(RESOLUTIONS).join(", ")}`);
-  const div = 2400 / dpi;
+  const [lo, hi] = r.lines;
+  const probeWidth = r.probe[1] - r.probe[0];
   const width = 384, height = 1, extra = Math.max(...lineShift(dpi));
   const lines = height + extra;
   const window = Math.round(width * r.ratio);
@@ -147,9 +156,9 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
   b.cmd(CMD.TABLE, ack(), step(true, u8([0x07, 0, 0, 0, 0, 0, 1, 0])), step(true, t07), ack());
   const timing = (darkFlag = 0) => block(12, [[0, 2, r.timing], [9, 1, darkFlag]]);
   b.set(0x1e22, timing());
-  b.set(CMD.WINDOW, block(22, [[0, 2, r.probe[0]], [2, 2, r.probe[1]], [4, 2, 4], [9, 1, 1], [10, 1, div], [16, 1, 0x80], [18, 1, 4]]));
+  b.set(CMD.WINDOW, block(22, [[0, 2, r.probe[0]], [2, 2, r.probe[1]], [4, 2, 4], [9, 1, lo], [10, 1, hi], [16, 1, 0x80], [18, 1, 4]]));
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).status();
-  b.read([16 * 4 * 6 + 8]).status();
+  b.read([probeWidth * 4 * 6 + 8]).status();
 
   // white reference: 32 lines, 51 steps into the bed, with the probe's offsets
   b.set(0x1e22, timing());
@@ -161,7 +170,7 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
 
   // dark reference: lamp off, 16 lines
   b.set(0x1ea2, u8([0])).set(0x1e22, timing(1));
-  const dark = block(22, [[0, 2, start], [2, 2, end], [4, 2, 16], [9, 1, 1], [10, 1, div], [16, 1, 0x80], [18, 1, 16]]);
+  const dark = block(22, [[0, 2, start], [2, 2, end], [4, 2, 16], [9, 1, lo], [10, 1, hi], [16, 1, 0x80], [18, 1, 16]]);
   b.set(CMD.WINDOW, dark).set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).set(CMD.WINDOW, dark.slice()).status();
   b.read([]).status();
 
@@ -176,19 +185,19 @@ function base(dpi, { grey = false, gamma = 1.8 } = {}) {
 
   // the image pass
   b.set(0x1e22, timing());
-  b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, lines], [8, 2, r.imageMode], [10, 1, div],
+  b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, lines], [8, 2, r.imageMode], [10, 1, hi],
     [11, 1, 0x80], [12, 1, 0x80], [16, 1, 0x80], [17, 1, 0xa0], [18, 1, perBlock]])); // 11 and 15: at run time
   b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE_SCAN); // 1e 42: calibration, at run time
   b.table([0x06, 0x00, 0x08, 0x01, 0x02], new Uint8Array(window * 6)); // shading: at run time
   const scanTable = r.scanRamp ? bytesOf(ramp(r.scanRamp)) : bytesOf(new Uint16Array([r.scanSpeed]));
   b.table([0x05, 0x00, 0x00, 0x01, 0x02], scanTable);
   const used = r.scanRampUsed ? r.scanRampUsed - 1 : 0;
-  b.set(CMD.MOVE, block(12, [[0, 4, lines * div + r.scanTail], [4, 2, r.scanTail], [6, 2, used], [8, 2, used], [10, 2, r.scanFlags]]));
+  b.set(CMD.MOVE, block(12, [[0, 4, scanSteps(lines, dpi) + r.scanTail], [4, 2, r.scanTail], [6, 2, used], [8, 2, used], [10, 2, r.scanFlags]]));
   b.status().read([]);
 
   return new Template({
     name: `built-in ${dpi} dpi`, groups: b.groups, xres: dpi, yres: dpi, width, height, mode, grey, deep: false,
-    windows: [16, window, window, window], used: new Uint8Array(window).fill(1), imageRawWidth: width,
+    windows: [probeWidth, window, window, window], used: new Uint8Array(window).fill(1), imageRawWidth: width,
   });
 }
 

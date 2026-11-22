@@ -255,7 +255,8 @@ hardware you own falls under the EULA's personal-use grant.
 - [x] Firmware straight from Epson's download (`web/v500/bundle.js`),
       uploaded to the real scanner by the JS driver.
 - [ ] First WebUSB scan on the real scanner, from the page.
-- [ ] 1600 dpi: needs `tools/capture/capture.sh --set 2`.
+- [x] 1600 dpi with no capture: values from the plugin's tables (static
+      analysis), checked on the real scanner.
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.
 - [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).

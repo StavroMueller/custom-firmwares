@@ -6,6 +6,11 @@ import { lineShift } from "./raw.js";
 import { CMD, params, Template } from "./replay.js";
 
 export const STEPS_PER_INCH = 2400;
+
+// Motor steps for `lines` scan lines. At 1600 dpi a line is 1.5 steps.
+export function scanSteps(lines, dpi) {
+  return Math.ceil((lines * STEPS_PER_INCH) / dpi);
+}
 export const BLOCK_BYTES = 51200; // Epson reads in chunks of this size; image blocks fit in it
 export const RAW_QUANTUM = 384; // raw line widths when the sensor runs faster than the scan
 export const LINE_QUANTUM = 32; // otherwise: every width Epson sent at 800 dpi is a multiple of 32; 1,889 px hung the scanner
@@ -143,7 +148,7 @@ export function retarget(t, area) {
   // the move to the top of the area: same total distance plus the y change
   let m = params(groups[toTop])[0];
   const stepsT = u32(m, 0), rampT = u16(m, 6) + 1;
-  const distance = stepsT + 2 * rampT + (area.y - ty) * spl;
+  const distance = stepsT + 2 * rampT + Math.round((area.y - ty) * spl);
   let n = params(groups[ramp])[1].length / 2;
   while (n > 1 && distance - 2 * n < 0) n = Math.floor(n / 2);
   if (distance - 2 * n < 0) throw new Error(`can't reach line ${area.y}: move of ${distance} steps`);
@@ -156,9 +161,9 @@ export function retarget(t, area) {
   // the scan move
   m = params(groups[scanMove])[0];
   const tail = u16(m, 4);
-  if (u32(m, 0) !== linesT * spl + tail) throw new Error("template's scan move doesn't match its line count");
+  if (u32(m, 0) !== scanSteps(linesT, dpi) + tail) throw new Error("template's scan move doesn't match its line count");
   q = m.slice();
-  setU32(q, 0, lines * spl + tail);
+  setU32(q, 0, scanSteps(lines, dpi) + tail);
   out[scanMove] = withParams(groups[scanMove], [q]);
 
   const used = new Uint8Array(window);

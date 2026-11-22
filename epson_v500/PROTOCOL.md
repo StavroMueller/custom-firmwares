@@ -278,7 +278,32 @@ Per resolution:
 | move to area at y = 0 (steps + both ramps) | 706 | 956 | 1212 |
 | scan move tail, ramp entries, flags | 120, 512, 0 | 126, 256, 2 | 126, 0, 8 |
 
-1600 dpi needs a capture (`tools/capture/capture.sh --set 2`).
+**1600 dpi**, from the plugin's tables alone (below) and checked on the real
+scanner: timing 0x2a60, `1e 46`/`1e 11` 2, probe window 61-109 (48 px),
+image `1e 41` bytes 8-10 `01 02 03`, constant step interval 452 (flags 8,
+no ramp), tail 30, move to area 1,308 steps at y = 0. A line is 1.5 motor
+steps (2400 x 2/3 / 1600), so the scan move is ceil(lines x 1.5) + 30. Colour
+rows lag by 40 and 80 lines, as the 5 x dpi / 200 rule says.
+
+## Where the settings come from
+
+Static analysis of the plugin found the source of every per-resolution
+value (`SYMBOL_285` at 0x378a0 picks them):
+
+- an X table (0x45000), one row per x resolution 100-6400: the sensor's rate
+  (533, 800, 1600, 3200 or 6400 dpi) and sensor units per pixel;
+- a Y table (0x45960), one row per y resolution 80-6400: the line period for
+  each sensor rate, and the line rate lo/hi of 2400 (`1e 41` bytes 9-10);
+- a table per sensor rate (0x44ee0): dark probe start and width, image
+  window start (144 at 533, 215 at 800, 431 at 1600; our captures show 1-2
+  less), full width;
+- the motor from formulas: f = hi x 10^6 / (period x lo); above 1999 a full
+  512-entry ramp, 700-1999 a half-step ramp (256 used), below 700 a constant
+  interval of lo x period / hi / 16. Tail 160, 128 or 32 by f; the move to
+  the area is 1,338 - tail - ramp at y = 0.
+
+The same tables give 600, 1200, 3200 and 6400 dpi, and a second set probably
+for the transparency unit.
 
 **Widths.** Epson rounds the area's offsets to the nearest pixel and cuts the
 width down to a multiple of 8. At 800 dpi the raw line is the width itself.
