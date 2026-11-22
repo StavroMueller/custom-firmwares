@@ -53,6 +53,21 @@ Before firmware, the scanner enumerates as `04b8:0130` "EPSON Scanner",
 USB 2.0 high speed, one vendor-specific interface with bulk endpoints `0x81`
 in and `0x02` out, 512-byte packets.
 
+### Capturing Epson's driver at work
+
+To learn the commands after the firmware upload, run Epson's own driver once
+and record the USB traffic. The driver runs in an Ubuntu 22.04 container, and
+the host records with usbmon. Power-cycle the scanner first, then:
+
+```sh
+sudo tools/capture/capture.sh /path/to/iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz
+```
+
+It lists the scanner, then scans the full bed at 75 and 300 dpi. Each step
+writes a `.pcap` (open it in Wireshark), an epkowa debug log and the image to
+`captures/<timestamp>/`. The pcaps hold Epson's firmware bytes, so `captures/`
+is gitignored.
+
 ## What the scanner is
 
 | Fact | Value | Source |

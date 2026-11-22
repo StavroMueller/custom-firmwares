@@ -17,3 +17,4 @@ epson_v500/photos/
 __pycache__/
 *.egg-info/
 .pytest_cache/
+epson_v500/captures/
