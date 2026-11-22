@@ -32,12 +32,26 @@ python -m booth                   # http://<host>:8000, open it on the iPad
 On the iPad, open the page in Safari, then Share > Add to Home Screen. Turn
 on Guided Access to lock the iPad to the app.
 
-Uploading firmware to a real scanner, untested so far (bring your own
-`esfw7C.bin`):
+### With the real scanner
+
+SANE's udev rules don't list `04b8:0130`, so the device node is root-only.
+Install our rule once, then unplug and replug the scanner:
 
 ```sh
-python -m v500.firmware /path/to/esfw7C.bin
+sudo install -m 644 udev/60-epson-v500.rules /etc/udev/rules.d/
+sudo udevadm control --reload
 ```
+
+Then check it answers, and upload the firmware (bring your own `esfw7C.bin`):
+
+```sh
+python -m v500.firmware --status            # status query only, changes nothing
+python -m v500.firmware /path/to/esfw7C.bin  # upload, then confirm by status
+```
+
+Before firmware, the scanner enumerates as `04b8:0130` "EPSON Scanner",
+USB 2.0 high speed, one vendor-specific interface with bulk endpoints `0x81`
+in and `0x02` out, 512-byte packets.
 
 ## What the scanner is
 
@@ -51,7 +65,8 @@ python -m v500.firmware /path/to/esfw7C.bin
 | Epson Scan 2 | does not support this model | Arch forum reports |
 
 There is no firmware in the scanner's flash. The host uploads `esfw7C.bin`
-each time the scanner powers on, and the scanner then re-enumerates on USB.
+each time the scanner powers on. The scanner keeps its USB address afterwards;
+the status query is what shows the firmware is running.
 Until that upload happens the scanner looks dead: the LED blinks and every
 bulk transfer times out.
 
@@ -151,6 +166,6 @@ hardware you own falls under the EULA's personal-use grant.
       hardware. See [PROTOCOL.md](PROTOCOL.md).
 - [ ] Trace with the real scanner: every ESC/I command and the USB traffic it
       turns into.
-- [ ] Open firmware loader (pyusb), first test on hardware.
+- [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.
 - [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).

@@ -22,6 +22,7 @@ STATUS = b"\x1b\x03"
 BEGIN_UPLOAD = b"\x1b\x06"
 RUN = b"\x1b\x16"  # meaning inferred: sent right after the upload
 RUN_PARAM = b"\x80"
+FIRMWARE_LOADED = 0x10  # bit in the first status byte; the plugin skips the upload if set
 
 
 class Transport(Protocol):
@@ -62,10 +63,30 @@ def load(path: Path) -> Firmware:
     return parse(Path(path).read_bytes())
 
 
-def upload(firmware: Firmware, io: Transport) -> None:
-    """Run the upload sequence. Raises FirmwareError if the scanner doesn't ACK."""
+def status(io: Transport) -> bytes:
+    """Send the status query. Harmless, and changes nothing on the scanner.
+
+    The 2-byte reply has no ACK: both bytes are status (see PROTOCOL.md).
+    """
     io.write(STATUS)
-    _expect_ack(io, reply_size=2)  # second byte is a status we don't decode yet
+    reply = io.read(2)
+    if len(reply) < 2:
+        raise FirmwareError(f"short status reply: {reply.hex(' ') or 'nothing'}")
+    return reply[:2]
+
+
+def is_loaded(status_reply: bytes) -> bool:
+    return bool(status_reply[0] & FIRMWARE_LOADED)
+
+
+def upload(firmware: Firmware, io: Transport) -> bool:
+    """Upload the firmware unless the scanner already runs it.
+
+    Returns True if it uploaded, False if the status said firmware is loaded.
+    Raises FirmwareError if the scanner doesn't ACK a step.
+    """
+    if is_loaded(status(io)):
+        return False
 
     io.write(BEGIN_UPLOAD)
     _expect_ack(io)
@@ -79,6 +100,7 @@ def upload(firmware: Firmware, io: Transport) -> None:
     _expect_ack(io)
     io.write(RUN_PARAM)
     _expect_ack(io)
+    return True
 
 
 def _expect_ack(io: Transport, reply_size: int = 1) -> None:
@@ -87,17 +109,36 @@ def _expect_ack(io: Transport, reply_size: int = 1) -> None:
         raise FirmwareError(f"expected ACK, scanner replied {reply.hex(' ') or 'nothing'}")
 
 
-if __name__ == "__main__":
+def main() -> None:
     import argparse
-
     from .usb import UsbTransport
 
     parser = argparse.ArgumentParser(description="Upload esfw7C.bin to a V500.")
-    parser.add_argument("firmware", type=Path, help="path to your esfw7C.bin")
+    parser.add_argument("firmware", type=Path, nargs="?", help="path to your esfw7C.bin")
+    parser.add_argument("--status", action="store_true",
+                        help="only send the status query and print the reply")
     args = parser.parse_args()
+    if not args.status and args.firmware is None:
+        parser.error("give the firmware path, or --status")
+
+    if args.status:
+        with UsbTransport.open() as io:
+            reply = status(io)
+        state = "loaded" if is_loaded(reply) else "not loaded"
+        print(f"status reply: {reply.hex(' ')} (firmware {state})")
+        return
 
     fw = load(args.firmware)
     print(f"uploading {fw.ident} ({len(fw.body)} bytes, checksum {fw.checksum:02x})")
     with UsbTransport.open() as io:
-        upload(fw, io)
-    print("done; the scanner should now re-enumerate")
+        if not upload(fw, io):
+            print("firmware already loaded; nothing to do")
+            return
+        # The scanner does not re-enumerate; it stays at the same address.
+        reply = status(io)
+    if not is_loaded(reply):
+        raise SystemExit(f"upload ACKed but status is {reply.hex(' ')}: firmware not running")
+    print(f"firmware running (status {reply.hex(' ')})")
+
+if __name__ == "__main__":
+    main()

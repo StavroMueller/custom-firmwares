@@ -23,9 +23,16 @@ class UsbTransport:
         device = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
         if device is None:
             raise OSError(f"no scanner at {VENDOR_ID:04x}:{PRODUCT_ID:04x}")
-        if device.is_kernel_driver_active(0):
-            device.detach_kernel_driver(0)
-        device.set_configuration()
+        try:
+            if device.is_kernel_driver_active(0):
+                device.detach_kernel_driver(0)
+            device.set_configuration()
+        except usb.core.USBError as e:
+            if e.errno == 13:
+                raise PermissionError(
+                    "no permission to open the scanner; install udev/60-epson-v500.rules "
+                    "(see README), then unplug and replug it") from e
+            raise
         return cls(device)
 
     def write(self, data: bytes) -> None:
@@ -34,7 +41,10 @@ class UsbTransport:
             raise OSError(f"short write: {written} of {len(data)} bytes")
 
     def read(self, size: int) -> bytes:
-        return bytes(self.in_ep.read(size, timeout=TIMEOUT_MS))
+        # Ask for at least one full packet: a shorter request overflows if the
+        # scanner sends more than `size` bytes.
+        want = max(size, self.in_ep.wMaxPacketSize)
+        return bytes(self.in_ep.read(want, timeout=TIMEOUT_MS))
 
     def close(self) -> None:
         usb.util.dispose_resources(self.device)

@@ -12,16 +12,19 @@ def make_file(body: bytes = bytes(range(256)) * 256) -> bytes:
 
 
 class FakeScanner:
-    """Records writes and ACKs every read, like the scanner should."""
+    """Records writes. Answers the status query with `status`, then `reply` to every read."""
 
-    def __init__(self, reply: int = firmware.ACK):
+    def __init__(self, reply: int = firmware.ACK, status: bytes = b"\x28\x00"):
         self.writes: list[bytes] = []
         self.reply = reply
+        self.status = status  # 28 00 is what a real V500 sent with no firmware
 
     def write(self, data: bytes) -> None:
         self.writes.append(bytes(data))
 
     def read(self, size: int) -> bytes:
+        if self.writes[-1] == firmware.STATUS:
+            return self.status
         return bytes([self.reply]) + bytes(size - 1)
 
 
@@ -42,7 +45,7 @@ def test_upload_matches_the_captured_sequence():
     # The sequence tools/trace.c captured from Epson's plugin.
     fw = firmware.parse(make_file())
     scanner = FakeScanner()
-    firmware.upload(fw, scanner)
+    assert firmware.upload(fw, scanner) is True
     assert scanner.writes == [
         b"\x1b\x03",
         b"\x1b\x06",
@@ -52,6 +55,18 @@ def test_upload_matches_the_captured_sequence():
         b"\x1b\x16",
         b"\x80",
     ]
+
+
+def test_upload_skips_when_firmware_is_loaded():
+    scanner = FakeScanner(status=b"\x38\x00")  # bit 0x10 set
+    assert firmware.upload(firmware.parse(make_file()), scanner) is False
+    assert scanner.writes == [b"\x1b\x03"]
+
+
+def test_upload_header_is_body_plus_checksum_length():
+    # The plugin builds these 4 bytes from the length it sends: body + checksum.
+    fw = firmware.parse(make_file())
+    assert int.from_bytes(fw.upload_header, "little") == len(fw.body) + 1
 
 
 def test_upload_stops_when_scanner_refuses():

@@ -1,0 +1,10 @@
+# Epson Perfection V500 Photo / GT-X770 (04b8:0130).
+# SANE's own rules don't list this model, so the device node is root-only.
+# This gives the logged-in desktop user access and keeps USB autosuspend off.
+#
+#   sudo install -m 644 udev/60-epson-v500.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=usb
+ACTION=="remove", GOTO="epson_v500_end"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04b8", ATTR{idProduct}=="0130", \
+  TAG+="uaccess", ATTR{power/control}="on"
+LABEL="epson_v500_end"
