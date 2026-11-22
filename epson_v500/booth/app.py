@@ -115,6 +115,11 @@ async def in_thread(iterator: Iterator) -> AsyncIterator:
 def make_scanner(config: Config) -> Scanner:
     if config.scanner == "fake":
         return FakeScanner(config.fake_seconds, config.fake_images)
+    if config.scanner == "replay":
+        from v500.replay import ReplayScanner
+        if config.templates is None:
+            raise ValueError("BOOTH_SCANNER=replay needs BOOTH_TEMPLATES, a folder of captures")
+        return ReplayScanner.from_dir(config.templates, config.firmware)
     raise ValueError(f"unknown scanner backend {config.scanner!r}")
 
 

@@ -218,6 +218,63 @@ class Replayer:
         return value
 
 
+class ReplayScanner:
+    """The booth's `Scanner` backed by template replay.
+
+    `templates` maps a resolution to a template capture. Each scan opens the
+    scanner, uploads the firmware if it was power-cycled, and replays.
+    """
+
+    def __init__(self, templates: dict[int, Path], firmware_path: Path | None = None,
+                 open_transport: Callable[[], "Transport"] | None = None):
+        if not templates:
+            raise ValueError("no templates")
+        self.templates = {dpi: Template.load(path) for dpi, path in templates.items()}
+        self.firmware_path = firmware_path
+        self.open_transport = open_transport
+
+    @classmethod
+    def from_dir(cls, folder: Path, firmware_path: Path | None = None) -> "ReplayScanner":
+        """One colour template per resolution, from a folder of captures."""
+        found: dict[int, Path] = {}
+        for path in sorted(Path(folder).glob("*.usblog")):
+            try:
+                t = Template.load(path)
+            except (ValueError, StopIteration):
+                continue  # not a scan: listing, options, failed step
+            if not t.grey:
+                found.setdefault(t.yres, path)
+        return cls(found, firmware_path)
+
+    def scan(self, settings):
+        from . import firmware
+        from .scanner import Scan
+
+        template = self.templates.get(settings.dpi)
+        if template is None:
+            raise ValueError(f"no template for {settings.dpi} dpi; have {sorted(self.templates)}")
+        if self.open_transport is None:
+            from .usb import UsbTransport
+            transport = UsbTransport.open()
+        else:
+            transport = self.open_transport()
+        try:
+            if self.firmware_path:
+                firmware.upload(firmware.load(self.firmware_path), transport)
+            image = Replayer(template, transport).run()
+        finally:
+            close = getattr(transport, "close", None)
+            if close:
+                close()
+        if image.ndim == 2:
+            image = np.repeat(image[..., None], 3, axis=-1)
+        strips = (image[top:top + 32] for top in range(0, image.shape[0], 32))
+        return Scan(image.shape[1], image.shape[0], strips)
+
+    def close(self) -> None:
+        pass
+
+
 def main() -> None:
     import argparse
 

@@ -22,7 +22,9 @@ python -m booth                   # http://<host>:8000, open it on the iPad
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BOOTH_SCANNER` | `fake` | backend (only the fake exists so far) |
+| `BOOTH_SCANNER` | `fake` | backend: `fake`, or `replay` for the real scanner |
+| `BOOTH_TEMPLATES` | none | `replay`: folder of captures of Epson's driver, one per dpi |
+| `BOOTH_FIRMWARE` | none | `replay`: your `esfw7C.bin`, uploaded after a power cycle |
 | `BOOTH_DPI` | `150` | scan resolution |
 | `BOOTH_ROTATE` | `0` | degrees clockwise to turn scans upright, for the vertical mount |
 | `BOOTH_PHOTOS_DIR` | `photos` | where scans are saved |

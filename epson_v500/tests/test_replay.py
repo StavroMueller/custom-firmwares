@@ -130,3 +130,18 @@ def test_replaying_a_real_capture(path):
     ref, _ = raw.scan_from_capture(path)
     assert np.array_equal(image, ref)
     assert not dev.replies, "replay skipped some of the template's reads"
+
+
+def test_booth_backend_scans_through_a_template(tmp_path):
+    from v500.scanner import ScanSettings
+
+    write_template(tmp_path / "t.usblog")
+    t = replay.Template.load(tmp_path / "t.usblog")
+    scanner = replay.ReplayScanner.from_dir(tmp_path)
+    scanner.open_transport = lambda: TemplateScanner(t)
+    scan = scanner.scan(ScanSettings(dpi=200))
+    strips = list(scan.strips)
+    assert (scan.width, scan.height) == (4, 2)
+    assert sum(s.shape[0] for s in strips) == 2 and strips[0].shape[1:] == (4, 3)
+    with pytest.raises(ValueError, match="no template for 400"):
+        scanner.scan(ScanSettings(dpi=400))
