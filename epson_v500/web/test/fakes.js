@@ -7,8 +7,12 @@ import { POLL_READY, replies, STATUS } from "../v500/replay.js";
 const ACK = 0x06;
 
 // Answers with a template's recorded replies, in order; polls say ready.
+// strict: the caller must ask for exactly the recorded size. Off, it behaves
+// like USB: a request for more gets what the scanner has (WebUSB asks for at
+// least a full packet).
 export class TemplateScanner {
-  constructor(template) {
+  constructor(template, { strict = true } = {}) {
+    this.strict = strict;
     this.replies = template.groups.filter((g) => g.command !== POLL_READY && g.command !== STATUS).flatMap(replies);
     this.writes = [];
     this.command = 0;
@@ -23,7 +27,7 @@ export class TemplateScanner {
     if (this.command === POLL_READY) return new Uint8Array([0x01]);
     if (this.command === STATUS) return new Uint8Array([0x18, 0x81]);
     const r = this.replies.shift();
-    if (r.length !== size) throw new Error(`replay asked for ${size} bytes, template has ${r.length}`);
+    if (this.strict ? r.length !== size : r.length > size) throw new Error(`replay asked for ${size} bytes, template has ${r.length}`);
     return r;
   }
 }

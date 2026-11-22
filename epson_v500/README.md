@@ -7,9 +7,32 @@ GT-X770).
 |---|---|
 | `v500/` | our driver: the scanner interface, a fake backend, and the firmware loader |
 | `booth/` | the party scan booth: a FastAPI server and an iPad web page |
+| `web/` | the driver in plain JavaScript, and a page that scans over WebUSB |
 | `tools/trace.c` | runs Epson's plugin against a fake scanner and logs its USB traffic |
 | `PROTOCOL.md` | what we know about the USB protocol |
 | `DESIGN.md` | the driver phases and the booth design |
+
+## Scanning from the browser (WebUSB)
+
+`web/` is the whole driver in dependency-free JavaScript, and a page that
+uses it. It works in Chrome or Edge on a computer: iPads and Safari have no
+WebUSB. With the udev rule below installed:
+
+```sh
+cd epson_v500/web
+python3 -m http.server 8000      # WebUSB needs localhost or https
+```
+
+Open <http://localhost:8000>, click Connect and pick the scanner. Then pick
+your `esfw7C.bin` and one or more template captures (`captures/<ts>/*.usblog`).
+Both stay in the browser, which keeps them for next time. Choose a resolution
+and an area, and Scan: the image paints as the head moves.
+
+`web/test/sim.html` runs the same page against a simulated scanner that
+replays a capture (serve `epson_v500/` and open
+`/web/test/sim.html?template=/captures/<ts>/02-color-200-full.usblog`). The
+JS tests run with `cd web && node --test`; `tests/test_web.py` checks the JS
+driver against the Python one on every capture, byte for byte.
 
 ## Running the booth
 
@@ -203,7 +226,10 @@ hardware you own falls under the EULA's personal-use grant.
       checked on the real scanner against Epson's scan of the same area.
 - [x] Epson's packed shading table and the `1e 41` bytes that describe it,
       from static analysis of the plugin.
-- [ ] WebUSB page: the driver in plain JavaScript, in the browser.
+- [x] WebUSB page (`web/`): the driver in plain JavaScript; matches the
+      Python byte for byte on every capture, runs end to end on a simulated
+      scanner.
+- [ ] First WebUSB scan on the real scanner.
 - [ ] Resolutions without a template (1600 dpi; motor tables).
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.

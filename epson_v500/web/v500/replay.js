@@ -60,7 +60,7 @@ export class Template {
     const t16 = calibration.u16Samples(table);
     const used = new Uint8Array(t16.length / 3);
     for (let x = 0; x < used.length; x++) used[x] = Math.min(t16[x * 3], t16[x * 3 + 1], t16[x * 3 + 2]) > 0 ? 1 : 0;
-    return new Template({ name, groups, xres, yres, width, height, grey: mode === 0x800, windows, used });
+    return new Template({ name, groups, xres, yres, width, height, mode, grey: mode === 0x800, deep: Boolean(mode & 0x1000), windows, used });
   }
 
   // Raw line width of the image pass, from the recorded data.

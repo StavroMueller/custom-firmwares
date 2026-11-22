@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V500 Scanner</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>V500 Scanner</h1>
+    <p class="sub">Epson Perfection V500 Photo, driven from the browser over WebUSB. No Epson software involved.</p>
+  </header>
+
+  <p id="unsupported" class="banner" hidden>
+    This browser has no WebUSB. Use Chrome or Edge on a computer, and open the page from
+    <code>http://localhost</code> or over https.
+  </p>
+
+  <main>
+    <section class="panel">
+      <h2><span class="n">1</span> Scanner</h2>
+      <div class="row">
+        <button id="connect">Connect</button>
+        <span id="device" class="muted">Not connected</span>
+      </div>
+
+      <h2><span class="n">2</span> Files</h2>
+      <p class="muted small">Your own copies, kept in this browser only.</p>
+      <label class="file">
+        <span>Firmware <code>esfw7C.bin</code></span>
+        <input id="firmware" type="file" accept=".bin">
+        <span id="firmware-name" class="muted small">none</span>
+      </label>
+      <label class="file">
+        <span>Templates <code>*.usblog</code>, one per resolution</span>
+        <input id="templates" type="file" accept=".usblog" multiple>
+        <span id="templates-list" class="muted small">none</span>
+      </label>
+      <button id="forget" class="link">Forget stored files</button>
+
+      <h2><span class="n">3</span> Scan</h2>
+      <div class="grid">
+        <label>Resolution <select id="dpi"></select></label>
+        <label>Area <select id="area-preset">
+          <option value="full">Full bed</option>
+          <option value="custom">Custom (mm)</option>
+        </select></label>
+      </div>
+      <div id="area-mm" class="grid four" hidden>
+        <label>Left <input id="left" type="number" min="0" max="215" step="1" value="20"></label>
+        <label>Top <input id="top" type="number" min="0" max="297" step="1" value="30"></label>
+        <label>Width <input id="width" type="number" min="1" max="215" step="1" value="150"></label>
+        <label>Height <input id="height" type="number" min="1" max="297" step="1" value="100"></label>
+      </div>
+      <div class="row">
+        <button id="scan" class="primary" disabled>Scan</button>
+        <button id="save" disabled>Save PNG</button>
+      </div>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <p id="status" class="status" role="status"></p>
+      <details>
+        <summary>Log</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+
+    <section class="preview">
+      <canvas id="canvas" width="0" height="0"></canvas>
+      <p id="placeholder" class="muted">The scan paints here as the head moves.</p>
+    </section>
+  </main>
+</body>
+</html>

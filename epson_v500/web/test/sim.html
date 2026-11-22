@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V500 Simulator</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<script type="module">
+// The scanner page against a simulated scanner, for UI work without hardware.
+//
+// Serve epson_v500/ (python3 -m http.server), then open
+//   /web/test/sim.html?template=/captures/<ts>/02-color-200-full.usblog
+// The template is replayed as the "scanner": a full-bed scan at its
+// resolution gives back the recorded image. Add &auto to connect and scan.
+import { TemplateScanner } from "./fakes.js";
+import { Template } from "../v500/replay.js";
+
+const q = new URLSearchParams(location.search);
+const html = await (await fetch("../index.html")).text();
+const doc = new DOMParser().parseFromString(html, "text/html");
+document.body.innerHTML = doc.body.innerHTML;
+document.title = "V500 Simulator";
+
+let scanner = null;
+let templateFile = null;
+if (q.get("template")) {
+  const buf = await (await fetch(q.get("template"))).arrayBuffer();
+  const name = q.get("template").split("/").pop();
+  scanner = new TemplateScanner(Template.fromUsblog(buf, name), { strict: false });
+  templateFile = new File([buf], name);
+}
+
+// A fake WebUSB device that forwards transfers to the simulated scanner.
+const device = {
+  productName: "Simulated V500",
+  vendorId: 0x04b8, productId: 0x0130, opened: false, configuration: null,
+  async open() { this.opened = true; },
+  async close() { this.opened = false; },
+  async selectConfiguration() {
+    this.configuration = { interfaces: [{ interfaceNumber: 0, alternate: { endpoints: [
+      { type: "bulk", direction: "out", endpointNumber: 2, packetSize: 512 },
+      { type: "bulk", direction: "in", endpointNumber: 1, packetSize: 512 },
+    ] } }] };
+  },
+  async claimInterface() {},
+  async releaseInterface() {},
+  async transferOut(ep, data) {
+    await scanner.write(new Uint8Array(data));
+    return { status: "ok", bytesWritten: data.length };
+  },
+  async transferIn(ep, size) {
+    const r = await scanner.read(size); // status polls answer "firmware running, not busy"
+    return { status: "ok", data: new DataView(r.buffer, r.byteOffset, r.byteLength) };
+  },
+};
+const usb = new EventTarget();
+usb.getDevices = async () => [];
+usb.requestDevice = async () => device;
+Object.defineProperty(navigator, "usb", { value: usb, configurable: true });
+
+await import("../app.js");
+
+// hand the template to the page as if the user had picked it
+if (scanner) {
+  const input = document.getElementById("templates");
+  const dt = new DataTransfer();
+  dt.items.add(templateFile);
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change"));
+}
+
+if (q.has("auto") && scanner) {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  await wait(6000); // stored-file lookups time out after 2 s each in browsers without storage
+  document.getElementById("connect").click();
+  await wait(300);
+  document.getElementById("scan").click();
+}
+</script>
+</body>
+</html>
