@@ -19,6 +19,12 @@ def trailer(n: int) -> bytes:
     return b"\x02" + n.to_bytes(3, "little") + b"\x00\x00\x80\x00"
 
 
+def reference(level: int, lines: int, window: int) -> np.ndarray:
+    """A deterministic 16-bit reference read, so other implementations can match it."""
+    l, x, c = np.meshgrid(np.arange(lines), np.arange(window), np.arange(3), indexing="ij")
+    return (level + (l * 7 + x * 13 + c * 5) % 50 + x * 3 % 40).astype("<u2")
+
+
 class GeometryScanner:
     def __init__(self, ratio: float | None = None):
         self.ratio = ratio
@@ -60,8 +66,7 @@ class GeometryScanner:
         window = end - start
         if self.reads < 3:
             level = (1200, 40000, 1300)[self.reads]
-            rng = np.random.default_rng(self.reads)
-            d = (level + rng.integers(0, 50, (lines, window, 3))).astype("<u2").tobytes()
+            d = reference(level, lines, window).tobytes()
             return d + trailer(len(d))
         ratio = self.ratio or RATIO[self.dpi]
         width = round(window / ratio)

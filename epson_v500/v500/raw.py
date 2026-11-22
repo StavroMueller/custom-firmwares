@@ -17,7 +17,7 @@ The pipeline:
    scanner sends the extra lines.
 4. Crop to the requested width.
 5. Colour: Epson's colour matrix. Grey: a weighted sum of the raw channels.
-   Both truncate to 0..255.
+   Both truncate to 0..255, computed exactly in integers.
 """
 
 from collections.abc import Iterable
@@ -36,6 +36,11 @@ COLOR_MATRIX = np.array([
 
 # Grey from the raw channels, no colour matrix. Fitted to Epson's grey output.
 GREY_WEIGHTS = np.array([0.195, 0.61, 0.195])
+
+# The same in exact integer arithmetic, so every implementation (web/v500 too)
+# truncates identically: values that land exactly on an integer stay there.
+MATRIX_SCALE = 10000
+GREY_SCALE = 1000
 
 
 def line_shift(dpi: int) -> tuple[int, int, int]:
@@ -88,12 +93,13 @@ def decode(data: bytes, width: int, height: int, dpi: int = 200, grey: bool = Fa
     raw = np.frombuffer(data, np.uint8).reshape(lines, raw_width, 3)
     rgb = np.stack([raw[s:s + height, :width, c] for c, s in enumerate(shift)], axis=-1)
     if grey:
-        # The small epsilon keeps exact sums like 0.195*100 + ... from truncating down.
-        return np.clip(np.floor(rgb @ GREY_WEIGHTS + 1e-9), 0, 255).astype(np.uint8)
+        w = np.rint(GREY_WEIGHTS * GREY_SCALE).astype(np.int64)
+        return np.clip((rgb.astype(np.int64) @ w) // GREY_SCALE, 0, 255).astype(np.uint8)
     if matrix is None:
         return rgb
-    corrected = rgb.astype(np.float64) @ np.asarray(matrix).T
-    return np.clip(np.floor(corrected), 0, 255).astype(np.uint8)
+    m = np.rint(np.asarray(matrix) * MATRIX_SCALE).astype(np.int64)
+    corrected = (rgb.astype(np.int64) @ m.T) // MATRIX_SCALE   # floor division: truncates down
+    return np.clip(corrected, 0, 255).astype(np.uint8)
 
 
 def scan_from_capture(path: str) -> tuple[np.ndarray, dict]:
