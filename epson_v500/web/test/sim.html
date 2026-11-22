@@ -14,7 +14,8 @@
 //   /web/test/sim.html?template=/captures/<ts>/02-color-200-full.usblog
 // The template is replayed as the "scanner": a full-bed scan at its
 // resolution gives back the recorded image. Add &auto to connect and scan,
-// and &booth=<0|90|180|270> to do it in booth mode.
+// and &booth=<0|90|180|270> to do it in booth mode (&button: started by the
+// scanner's own button).
 import { TemplateScanner } from "./fakes.js";
 import { Template } from "../v500/replay.js";
 
@@ -81,7 +82,8 @@ if (q.has("auto") && scanner) {
     document.getElementById("booth-rotate").value = q.get("booth") || "0";
     document.getElementById("booth-start").click();
     await wait(300);
-    document.getElementById("booth-go").click();
+    if (q.has("button")) scanner.button = 1; // press the scanner's Start button
+    else document.getElementById("booth-go").click();
   } else {
     document.getElementById("scan").click();
   }

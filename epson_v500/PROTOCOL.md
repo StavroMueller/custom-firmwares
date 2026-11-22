@@ -286,6 +286,28 @@ A 1,889 px line hung the scanner mid-scan, so we pad it to a multiple of 32.
 A hung scanner (status `58 81`, busy) needs a power cycle. **A USB port reset
 does not help: the scanner drops off the bus until it is power-cycled.**
 
+## Buttons, abort and home
+
+From static analysis of the plugin (command helper at 0xc140; nothing run).
+Checked on the real scanner where noted.
+
+- **Front-panel button**: `1e 85`, no ACK, one byte. 1-4 is the button
+  pressed, likely Start, Copy, E-mail and PDF; 0 is none. Reads 00 when
+  nothing is pressed (checked). The page polls it in booth mode.
+- **Abort a scan**: `1e 18`, no ACK, wait 1 s, read one byte (the plugin
+  doesn't check it), then poll `1b 03` until neither 0x40 (busy) nor 0x02
+  is set. Epson sends it only once the image read (`1e 47`) has started.
+  **Checked:** stopped mid-image, the scanner went back to `18 81` and the
+  next scan was normal. This is the way out of a stuck scan without a power
+  cycle.
+- **Home**: `1e fa` + ACK sends the carriage home; `1e 86` then reads 0. The
+  plugin does this before a scan if the carriage isn't at 0. After a normal
+  scan the scanner returns home by itself, which keeps it busy for ~2.7 s.
+- **Reset**: `1b 40` (ESC @) + ACK, which the plugin sends at session start.
+- `1b 03` byte 0: 0x80 fatal error, 0x40 busy, 0x10 firmware loaded, 0x02
+  short wait, 0x01 warming up. Byte 1 & 7: hardware variant; & 3 nonzero:
+  transparency unit present.
+
 ## The `1e` commands in a scan, in order
 
 From one 200 dpi colour scan, and a repeat of it to see which values move.

@@ -35,8 +35,10 @@ can't build yet.
 **Booth mode** turns the page into the photo booth itself, no server or
 iPad needed. Pick how to turn the image (for the vertical mount), a
 countdown, and optionally a folder to save every photo in. Then click Start
-booth: a full-screen view with a big Scan button. Space or Enter also scan,
-so a USB foot pedal works; Escape leaves. Any laptop, mini PC or Android
+booth: a full-screen view with a big Scan button. The scanner's own front
+buttons, Space or Enter also scan, so guests need not touch a screen and a
+USB foot pedal works. Escape cancels a scan or leaves. A cancelled or failed
+scan is aborted on the scanner, so it doesn't stay stuck. Any laptop, mini PC or Android
 tablet with Chrome can run it. iPads can't, because Safari has no WebUSB.
 
 The page reuses the analog levels the scanner measured on an earlier scan

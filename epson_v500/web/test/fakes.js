@@ -26,6 +26,11 @@ export class TemplateScanner {
   async read(size) {
     if (this.command === POLL_READY) return new Uint8Array([0x01]);
     if (this.command === STATUS) return new Uint8Array([0x18, 0x81]);
+    if (this.command === 0x1e85) { // front-panel button: reported once
+      const b = this.button ?? 0;
+      this.button = 0;
+      return new Uint8Array([b]);
+    }
     const r = this.replies.shift();
     if (this.strict ? r.length !== size : r.length > size) throw new Error(`replay asked for ${size} bytes, template has ${r.length}`);
     return r;
@@ -87,6 +92,7 @@ export class GeometryScanner {
     }
     if (this.command === POLL_READY) return new Uint8Array([0x01]);
     if (this.command === STATUS) return new Uint8Array([0x18, 0x81]);
+    if (this.command === 0x1e85) return new Uint8Array([0]);
     if (size === 1) return new Uint8Array([ACK]);
     return new Uint8Array(size);
   }

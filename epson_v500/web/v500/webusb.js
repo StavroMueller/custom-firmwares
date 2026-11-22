@@ -60,7 +60,24 @@ export class WebUsbTransport {
     // Ask for at least one full packet: a shorter request overflows if the
     // scanner sends more than `size` bytes.
     const want = Math.max(size, this.inEp.packetSize);
-    const r = await withTimeout(this.device.transferIn(this.inEp.endpointNumber, want), "read");
+    // A transfer whose wait timed out is still queued in the browser and
+    // would take the next reply (e.g. the answer to an abort). Reuse it as
+    // this read when it's big enough; otherwise let it finish first.
+    let transfer = null;
+    if (this.stale) {
+      const { promise, want: staleWant } = this.stale;
+      this.stale = null;
+      if (staleWant >= size) transfer = { promise, want: staleWant };
+      else await withTimeout(promise, "read").catch(() => {});
+    }
+    transfer ??= { promise: this.device.transferIn(this.inEp.endpointNumber, want), want };
+    let r;
+    try {
+      r = await withTimeout(transfer.promise, "read");
+    } catch (e) {
+      this.stale = transfer;
+      throw e;
+    }
     if (r.status !== "ok") throw new Error(`read failed: ${r.status}`);
     return new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
   }

@@ -9,6 +9,7 @@
 
 import { commandBytes, commandId, concat, hex, u16, u32 } from "./bytes.js";
 import * as calibration from "./calibration.js";
+import { abortScan } from "./device.js";
 import { lineShift, payload, StreamDecoder, TRAILER } from "./raw.js";
 import { parseUsblog } from "./usblog.js";
 
@@ -81,7 +82,7 @@ export class Replayer {
   // white and dark references are still read fresh, so the image stays
   // calibrated.
   constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {},
-    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null } = {}) {
+    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null, signal = null } = {}) {
     this.t = template;
     this.io = io;
     this.sleep = sleep;
@@ -91,6 +92,8 @@ export class Replayer {
     this.pollTimeoutMs = pollTimeoutMs;
     this.pollIntervalMs = pollIntervalMs;
     this.reuseLevels = Boolean(levels);
+    this.signal = signal; // an AbortSignal: stops the scan and aborts it on the scanner
+    this.moving = false; // the image read has started: stopping now needs an abort
     this.reads = [];
     this.afe = levels;
     this.probeOff = null;
@@ -100,13 +103,39 @@ export class Replayer {
     this.totalReads = template.groups.filter((g) => g.command === CMD.READ).length;
   }
 
+  // Runs the scan. If it's stopped (signal) or fails once the image read
+  // has started, the scanner is told to abort (`1e 18`), so it ends up idle
+  // instead of stuck busy.
   async run() {
+    try {
+      return await this.steps();
+    } catch (e) {
+      if (this.moving) {
+        this.log(`stopping the scanner after: ${e.message}`);
+        try {
+          await abortScan(this.io, { sleep: this.sleep });
+          this.log("scanner aborted and idle");
+        } catch (e2) {
+          this.log(`abort failed too: ${e2.message}`);
+          e.message += " (and the scanner didn't confirm the abort: if it stays busy, switch it off and on)";
+        }
+      }
+      throw e;
+    }
+  }
+
+  checkStop() {
+    if (this.signal?.aborted) throw Object.assign(new Error("scan cancelled"), { name: "AbortError" });
+  }
+
+  async steps() {
     const groups = this.t.groups;
     // the level measurement: from the first 1e 46 to the last 1e 92
     const measure = [groups.findIndex((g) => g.command === 0x1e46), groups.findLastIndex((g) => g.command === CMD.AFE_READ)];
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
+      this.checkStop();
       if (g.command === POLL_READY || g.command === STATUS) {
         while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
         if (g.command === POLL_READY) await this.pollReady();
@@ -124,6 +153,7 @@ export class Replayer {
     this.count.set(g.command, n + 1);
     const isImage = g.command === CMD.READ && this.reads.length === this.totalReads - 1;
     if (isImage) this.startImage();
+    if (isImage) this.moving = true; // like Epson's plugin: abort only once the image read has started
     await this.io.write(commandBytes(g.command));
     const sent = this.substitute(g, n);
     let p = 0;
@@ -133,6 +163,7 @@ export class Replayer {
         await this.io.write(sent[p++]);
         continue;
       }
+      if (isImage) this.checkStop();
       const reply = await this.io.read(step.requested);
       if (reply.length !== step.requested) throw new Error(`${hex(commandBytes(g.command))}: read ${reply.length} of ${step.requested} bytes`);
       if (step.data.length === 1 && step.data[0] === ACK && !(reply.length === 1 && reply[0] === ACK)) {

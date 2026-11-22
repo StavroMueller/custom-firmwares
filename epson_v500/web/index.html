@@ -67,13 +67,15 @@
       </div>
       <div class="row">
         <button id="scan" class="primary" disabled>Scan</button>
+        <button id="cancel" hidden>Cancel</button>
         <button id="save" disabled>Save PNG</button>
       </div>
       <progress id="progress" max="1" value="0" hidden></progress>
       <p id="status" class="status" role="status"></p>
       <h2><span class="n">4</span> Booth mode</h2>
-      <p class="muted small">Full screen, a big Scan button and a countdown. Space or Enter scans
-        too, so a USB foot pedal works. Uses the scan settings above.</p>
+      <p class="muted small">Full screen, a big Scan button and a countdown. The scanner's own
+        buttons, Space or Enter (so a USB foot pedal) scan too; Escape cancels or leaves.
+        Uses the scan settings above.</p>
       <div class="grid">
         <label>Turn the image <select id="booth-rotate">
           <option value="0">upright</option>

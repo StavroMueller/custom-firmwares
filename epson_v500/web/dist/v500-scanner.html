@@ -325,8 +325,66 @@ function commandBytes(id) {
 return { concat, view, u16, u32, setU16, setU32, hex, equal, commandId, commandBytes };
 })();
 
-// ---- v500/firmware.js ----
+// ---- v500/device.js ----
 const __m2 = (() => {
+// Scanner controls outside a scan: front-panel buttons, aborting a scan,
+// sending the carriage home. From static analysis of Epson's plugin
+// (PROTOCOL.md, "Buttons, abort and home").
+
+const { hex } = __m3;
+const ACK = 0x06;
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The front-panel button pressed since the last query: 1-4, or 0 for none.
+// `1e 85`, no ACK, one byte. 1-4 are likely Start, Copy, E-mail, PDF.
+async function pressedButton(io) {
+  await io.write(new Uint8Array([0x1e, 0x85]));
+  const r = await io.read(1);
+  return r[0] >= 1 && r[0] <= 4 ? r[0] : 0;
+}
+
+async function status(io) {
+  await io.write(new Uint8Array([0x1b, 0x03]));
+  return io.read(2);
+}
+
+const busy = (s) => Boolean(s[0] & 0x40);
+
+// Wait until `1b 03` says neither busy (0x40) nor 0x02, like Epson's plugin.
+async function waitIdle(io, { timeoutMs = 30000, sleep = sleepMs } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const s = await status(io);
+    if (!(s[0] & 0x42)) return s;
+    if (Date.now() > deadline) throw new Error(`scanner stayed busy (status ${hex(s)})`);
+    await sleep(s[0] & 0x40 ? 200 : 50);
+  }
+}
+
+// Abort a scan in progress, as Epson's plugin does on cancel: `1e 18`,
+// wait a second, read one byte (not checked), then wait until idle. Any
+// image data still queued is read and dropped first.
+async function abortScan(io, { sleep = sleepMs } = {}) {
+  await io.write(new Uint8Array([0x1e, 0x18]));
+  await sleep(1000);
+  await io.read(1).catch(() => {});
+  return waitIdle(io, { sleep });
+}
+
+// Send the carriage home (`1e fa`), as the plugin does before a scan when
+// the carriage isn't at position 0.
+async function home(io, { sleep = sleepMs } = {}) {
+  await io.write(new Uint8Array([0x1e, 0xfa]));
+  const r = await io.read(1);
+  if (r[0] !== ACK) throw new Error(`home: scanner replied ${hex(r)}`);
+  return waitIdle(io, { sleep });
+}
+
+return { pressedButton, status, busy, waitIdle, abortScan, home };
+})();
+
+// ---- v500/firmware.js ----
+const __m4 = (() => {
 // Parse Epson's esfw7C.bin and upload it (see v500/firmware.py, PROTOCOL.md).
 // The V500 keeps no firmware in flash; the host uploads it on every power-on.
 // Users supply their own copy: Epson's licence forbids redistributing it.
@@ -386,7 +444,7 @@ return { FIRMWARE_LOADED, parseFirmware, status, isLoaded, upload };
 })();
 
 // ---- v500/raw.js ----
-const __m5 = (() => {
+const __m6 = (() => {
 // Turn the V500's raw image data into RGB (see v500/raw.py and PROTOCOL.md).
 //
 // Data comes in blocks, each followed by an 8-byte trailer holding its length.
@@ -514,7 +572,7 @@ return { TRAILER, COLOR_MATRIX, GREY_WEIGHTS, lineShift, blocks, payload, Stream
 })();
 
 // ---- v500/calibration.js ----
-const __m7 = (() => {
+const __m8 = (() => {
 // Calibration values for a scan, from the scanner's reference reads
 // (see v500/calibration.py and PROTOCOL.md, "Calibration").
 //
@@ -642,7 +700,7 @@ return { DARK_SMOOTHING, u16Samples, probeOffsets, param1e42, compute };
 })();
 
 // ---- v500/usblog.js ----
-const __m8 = (() => {
+const __m9 = (() => {
 // Read the transfer logs that tools/capture/usblog.c writes (see v500/usblog.py).
 //
 // File: "V5USBLOG", then records of
@@ -677,7 +735,7 @@ return { parseUsblog };
 })();
 
 // ---- v500/replay.js ----
-const __m6 = (() => {
+const __m7 = (() => {
 // Scan without Epson's plugin, by replaying a template (see v500/replay.py).
 //
 // A template is a capture of Epson's driver making one scan. We send the same
@@ -688,9 +746,10 @@ const __m6 = (() => {
 // polled properly instead of replayed.
 
 const { commandBytes, commandId, concat, hex, u16, u32 } = __m3;
-const calibration = __m7;
-const { lineShift, payload, StreamDecoder, TRAILER } = __m5;
-const { parseUsblog } = __m8;
+const calibration = __m8;
+const { abortScan } = __m2;
+const { lineShift, payload, StreamDecoder, TRAILER } = __m6;
+const { parseUsblog } = __m9;
 const POLL_READY = 0x1e04;
 const STATUS = 0x1b03;
 const BUSY = 0x40;
@@ -760,7 +819,7 @@ class Replayer {
   // white and dark references are still read fresh, so the image stays
   // calibrated.
   constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {},
-    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null } = {}) {
+    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null, signal = null } = {}) {
     this.t = template;
     this.io = io;
     this.sleep = sleep;
@@ -770,6 +829,8 @@ class Replayer {
     this.pollTimeoutMs = pollTimeoutMs;
     this.pollIntervalMs = pollIntervalMs;
     this.reuseLevels = Boolean(levels);
+    this.signal = signal; // an AbortSignal: stops the scan and aborts it on the scanner
+    this.moving = false; // the image read has started: stopping now needs an abort
     this.reads = [];
     this.afe = levels;
     this.probeOff = null;
@@ -779,13 +840,39 @@ class Replayer {
     this.totalReads = template.groups.filter((g) => g.command === CMD.READ).length;
   }
 
+  // Runs the scan. If it's stopped (signal) or fails once the image read
+  // has started, the scanner is told to abort (`1e 18`), so it ends up idle
+  // instead of stuck busy.
   async run() {
+    try {
+      return await this.steps();
+    } catch (e) {
+      if (this.moving) {
+        this.log(`stopping the scanner after: ${e.message}`);
+        try {
+          await abortScan(this.io, { sleep: this.sleep });
+          this.log("scanner aborted and idle");
+        } catch (e2) {
+          this.log(`abort failed too: ${e2.message}`);
+          e.message += " (and the scanner didn't confirm the abort: if it stays busy, switch it off and on)";
+        }
+      }
+      throw e;
+    }
+  }
+
+  checkStop() {
+    if (this.signal?.aborted) throw Object.assign(new Error("scan cancelled"), { name: "AbortError" });
+  }
+
+  async steps() {
     const groups = this.t.groups;
     // the level measurement: from the first 1e 46 to the last 1e 92
     const measure = [groups.findIndex((g) => g.command === 0x1e46), groups.findLastIndex((g) => g.command === CMD.AFE_READ)];
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
+      this.checkStop();
       if (g.command === POLL_READY || g.command === STATUS) {
         while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
         if (g.command === POLL_READY) await this.pollReady();
@@ -803,6 +890,7 @@ class Replayer {
     this.count.set(g.command, n + 1);
     const isImage = g.command === CMD.READ && this.reads.length === this.totalReads - 1;
     if (isImage) this.startImage();
+    if (isImage) this.moving = true; // like Epson's plugin: abort only once the image read has started
     await this.io.write(commandBytes(g.command));
     const sent = this.substitute(g, n);
     let p = 0;
@@ -812,6 +900,7 @@ class Replayer {
         await this.io.write(sent[p++]);
         continue;
       }
+      if (isImage) this.checkStop();
       const reply = await this.io.read(step.requested);
       if (reply.length !== step.requested) throw new Error(`${hex(commandBytes(g.command))}: read ${reply.length} of ${step.requested} bytes`);
       if (step.data.length === 1 && step.data[0] === ACK && !(reply.length === 1 && reply[0] === ACK)) {
@@ -921,13 +1010,13 @@ return { POLL_READY, STATUS, BUSY, CMD, group, params, replies, Template, Replay
 })();
 
 // ---- v500/geometry.js ----
-const __m4 = (() => {
+const __m5 = (() => {
 // Retarget a template to any scan area at its resolution (see v500/geometry.py
 // and PROTOCOL.md, "Scan geometry").
 
 const { setU16, setU32, u16, u32 } = __m3;
-const { lineShift } = __m5;
-const { CMD, params, Template } = __m6;
+const { lineShift } = __m6;
+const { CMD, params, Template } = __m7;
 const STEPS_PER_INCH = 2400;
 const BLOCK_BYTES = 51200; // Epson reads in chunks of this size; image blocks fit in it
 const RAW_QUANTUM = 384; // raw line widths when the sensor runs faster than the scan
@@ -1094,7 +1183,7 @@ return { STEPS_PER_INCH, BLOCK_BYTES, RAW_QUANTUM, LINE_QUANTUM, USED_MARGIN, BE
 })();
 
 // ---- v500/protocol.js ----
-const __m9 = (() => {
+const __m10 = (() => {
 // The whole command sequence for a scan, built from scratch: no capture of
 // Epson's driver needed. (See PROTOCOL.md, "Building a scan without a template".)
 //
@@ -1108,9 +1197,9 @@ const __m9 = (() => {
 // retargets captured templates.
 
 const { setU16, setU32 } = __m3;
-const { retarget } = __m4;
-const { lineShift } = __m5;
-const { CMD, POLL_READY, STATUS, Template } = __m6;
+const { retarget } = __m5;
+const { lineShift } = __m6;
+const { CMD, POLL_READY, STATUS, Template } = __m7;
 const ACK = new Uint8Array([0x06]);
 
 // Per-resolution constants, from captures of Epson's driver at each resolution.
@@ -1299,7 +1388,7 @@ return { RESOLUTIONS, MOVE_RAMP, gammaTable, ramp, build, SUPPORTED };
 })();
 
 // ---- v500/webusb.js ----
-const __m10 = (() => {
+const __m11 = (() => {
 // Bulk transport to the V500 over WebUSB (Chrome and Edge; see v500/usb.py).
 
 const VENDOR_ID = 0x04b8;
@@ -1362,7 +1451,24 @@ class WebUsbTransport {
     // Ask for at least one full packet: a shorter request overflows if the
     // scanner sends more than `size` bytes.
     const want = Math.max(size, this.inEp.packetSize);
-    const r = await withTimeout(this.device.transferIn(this.inEp.endpointNumber, want), "read");
+    // A transfer whose wait timed out is still queued in the browser and
+    // would take the next reply (e.g. the answer to an abort). Reuse it as
+    // this read when it's big enough; otherwise let it finish first.
+    let transfer = null;
+    if (this.stale) {
+      const { promise, want: staleWant } = this.stale;
+      this.stale = null;
+      if (staleWant >= size) transfer = { promise, want: staleWant };
+      else await withTimeout(promise, "read").catch(() => {});
+    }
+    transfer ??= { promise: this.device.transferIn(this.inEp.endpointNumber, want), want };
+    let r;
+    try {
+      r = await withTimeout(transfer.promise, "read");
+    } catch (e) {
+      this.stale = transfer;
+      throw e;
+    }
     if (r.status !== "ok") throw new Error(`read failed: ${r.status}`);
     return new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
   }
@@ -1390,18 +1496,19 @@ return { VENDOR_ID, PRODUCT_ID, WebUsbTransport };
 // The scanner page: connect over WebUSB, upload firmware, scan, paint rows live.
 
 const { findFirmware } = __m1;
-const { parseFirmware, status, isLoaded, upload } = __m2;
-const { fromMm, fullBed, retarget } = __m4;
-const { build, SUPPORTED } = __m9;
-const { Replayer, Template } = __m6;
-const { WebUsbTransport } = __m10;
+const { pressedButton } = __m2;
+const { parseFirmware, status, isLoaded, upload } = __m4;
+const { fromMm, fullBed, retarget } = __m5;
+const { build, SUPPORTED } = __m10;
+const { Replayer, Template } = __m7;
+const { WebUsbTransport } = __m11;
 const $ = (id) => document.getElementById(id);
 const ui = {
   connect: $("connect"), device: $("device"), firmware: $("firmware"), firmwareName: $("firmware-name"),
   templates: $("templates"), templatesList: $("templates-list"), forget: $("forget"),
   dpi: $("dpi"), mode: $("mode"), preset: $("area-preset"), areaMm: $("area-mm"),
   left: $("left"), top: $("top"), width: $("width"), height: $("height"),
-  scan: $("scan"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
+  scan: $("scan"), cancel: $("cancel"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
   canvas: $("canvas"), placeholder: $("placeholder"), unsupported: $("unsupported"),
 };
 
@@ -1410,8 +1517,23 @@ const state = {
   firmware: null, // parsed esfw7C.bin
   templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
   levels: null, // {data, at}: analog levels measured by an earlier scan, reused while fresh
-  scanning: false,
+  abort: null, // AbortController of the scan in progress
+  ioLock: Promise.resolve(), // one user of the USB connection at a time
 };
+
+// Run `fn` with the scanner to itself: button polls never interleave with a scan.
+async function exclusive(fn) {
+  const before = state.ioLock;
+  let release;
+  state.ioLock = new Promise((r) => (release = r));
+  await before;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
 
 // ---- stored files (IndexedDB; this browser only) ----
 
@@ -1593,7 +1715,11 @@ function paint(ctx, { top, rows, data, width, channels }) {
 
 // One scan with the settings in the panel, painted into `canvas` as rows arrive.
 // `onStatus(text)` reports what's happening. Returns {width, height, seconds}.
-async function performScan(canvas, onStatus, onFraction = () => {}) {
+function performScan(...args) {
+  return exclusive(() => scanNow(...args));
+}
+
+async function scanNow(canvas, onStatus, onFraction = () => {}) {
   const dpi = Number(ui.dpi.value);
   const template = state.templates.get(dpi);
   if (!state.io) throw new Error("Connect the scanner first.");
@@ -1629,7 +1755,9 @@ async function performScan(canvas, onStatus, onFraction = () => {}) {
   let imaging = false;
   const levels = state.levels && Date.now() - state.levels.at < LEVELS_FRESH_MS ? state.levels.data : null;
   if (levels) log("reusing the analog levels measured earlier");
+  state.abort = new AbortController();
   const replayer = new Replayer(t, io, {
+    signal: state.abort.signal,
     levels,
     log,
     onRows: (r) => {
@@ -1644,15 +1772,22 @@ async function performScan(canvas, onStatus, onFraction = () => {}) {
       if (!imaging) onFraction((0.15 * i) / n); // setup and calibration: the first sliver
     },
   });
-  await replayer.run();
+  try {
+    await replayer.run();
+  } finally {
+    state.abort = null;
+  }
   if (!levels) state.levels = { data: replayer.afe, at: Date.now() };
   onFraction(1);
   return { width: t.width, height: t.height, seconds: (performance.now() - started) / 1000 };
 }
 
+ui.cancel.addEventListener("click", () => state.abort?.abort());
+
 ui.scan.addEventListener("click", async () => {
   state.scanning = true;
   refresh();
+  ui.cancel.hidden = false;
   ui.save.disabled = true;
   ui.progress.hidden = false;
   ui.progress.value = 0;
@@ -1662,10 +1797,12 @@ ui.scan.addEventListener("click", async () => {
     say(`Done: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s.`, "ok");
     ui.save.disabled = false;
   } catch (e) {
-    say(`Scan failed: ${e.message}`, "bad");
+    if (e.name === "AbortError") say("Scan cancelled.");
+    else say(`Scan failed: ${e.message}`, "bad");
     log(`error: ${e.stack || e.message}`);
   } finally {
     state.scanning = false;
+    ui.cancel.hidden = true;
     refresh();
   }
 });
@@ -1718,7 +1855,7 @@ async function boothScan() {
     log(`booth scan: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s`);
     if (booth.dir) await savePhoto(turned(booth.canvas, deg));
   } catch (e) {
-    booth.status.textContent = `Scan failed: ${e.message}`;
+    booth.status.textContent = e.name === "AbortError" ? "Cancelled." : `Scan failed: ${e.message}`;
     log(`error: ${e.stack || e.message}`);
   } finally {
     booth.busy = state.scanning = false;
@@ -1754,8 +1891,28 @@ booth.folder.addEventListener("click", async () => {
   }
 });
 
+// While the booth is open and idle, the scanner's own buttons start a scan.
+async function pollButtons() {
+  while (!booth.el.hidden) {
+    if (!booth.busy && state.io) {
+      try {
+        const button = await exclusive(() => pressedButton(state.io));
+        if (button && !booth.el.hidden) {
+          log(`scanner button ${button} pressed`);
+          boothScan();
+        }
+      } catch (e) {
+        log(`button poll: ${e.message}`);
+        await wait(2000);
+      }
+    }
+    await wait(300);
+  }
+}
+
 booth.start.addEventListener("click", async () => {
   booth.el.hidden = false;
+  pollButtons();
   document.body.style.overflow = "hidden";
   booth.hint.hidden = false;
   booth.status.textContent = "";
@@ -1781,7 +1938,8 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     boothScan();
   } else if (e.key === "Escape") {
-    leaveBooth();
+    if (booth.busy) state.abort?.abort();
+    else leaveBooth();
   }
 });
 document.addEventListener("fullscreenchange", () => {
@@ -1897,13 +2055,15 @@ start();
       </div>
       <div class="row">
         <button id="scan" class="primary" disabled>Scan</button>
+        <button id="cancel" hidden>Cancel</button>
         <button id="save" disabled>Save PNG</button>
       </div>
       <progress id="progress" max="1" value="0" hidden></progress>
       <p id="status" class="status" role="status"></p>
       <h2><span class="n">4</span> Booth mode</h2>
-      <p class="muted small">Full screen, a big Scan button and a countdown. Space or Enter scans
-        too, so a USB foot pedal works. Uses the scan settings above.</p>
+      <p class="muted small">Full screen, a big Scan button and a countdown. The scanner's own
+        buttons, Space or Enter (so a USB foot pedal) scan too; Escape cancels or leaves.
+        Uses the scan settings above.</p>
       <div class="grid">
         <label>Turn the image <select id="booth-rotate">
           <option value="0">upright</option>

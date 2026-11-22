@@ -24,3 +24,15 @@ test("a scan with reused levels skips the measurement and sends them", async () 
   assert.deepEqual(reused.dev.sent(0x1e31).at(-1), levels);
   assert.deepEqual(reused.img.data, fresh.img.data);
 });
+
+test("stopping a scan mid-image aborts it on the scanner", async () => {
+  const dev = new GeometryScanner();
+  const ac = new AbortController();
+  const r = new Replayer(build(200, { x: 0, y: 0, width: 384, height: 200 }), dev, {
+    sleep: async () => {}, signal: ac.signal, onRows: () => ac.abort(),
+  });
+  await assert.rejects(r.run(), { name: "AbortError" });
+  const last = dev.writes.map((w) => Buffer.from(w).toString("hex"));
+  assert.ok(last.includes("1e18"), "sent 1e 18");
+  assert.equal(last.at(-1), "1b03"); // then waited for idle
+});

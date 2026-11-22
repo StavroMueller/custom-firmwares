@@ -1,6 +1,7 @@
 // The scanner page: connect over WebUSB, upload firmware, scan, paint rows live.
 
 import { findFirmware } from "./v500/bundle.js";
+import { pressedButton } from "./v500/device.js";
 import { parseFirmware, status, isLoaded, upload } from "./v500/firmware.js";
 import { fromMm, fullBed, retarget } from "./v500/geometry.js";
 import { build, SUPPORTED } from "./v500/protocol.js";
@@ -13,7 +14,7 @@ const ui = {
   templates: $("templates"), templatesList: $("templates-list"), forget: $("forget"),
   dpi: $("dpi"), mode: $("mode"), preset: $("area-preset"), areaMm: $("area-mm"),
   left: $("left"), top: $("top"), width: $("width"), height: $("height"),
-  scan: $("scan"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
+  scan: $("scan"), cancel: $("cancel"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
   canvas: $("canvas"), placeholder: $("placeholder"), unsupported: $("unsupported"),
 };
 
@@ -22,8 +23,23 @@ const state = {
   firmware: null, // parsed esfw7C.bin
   templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
   levels: null, // {data, at}: analog levels measured by an earlier scan, reused while fresh
-  scanning: false,
+  abort: null, // AbortController of the scan in progress
+  ioLock: Promise.resolve(), // one user of the USB connection at a time
 };
+
+// Run `fn` with the scanner to itself: button polls never interleave with a scan.
+async function exclusive(fn) {
+  const before = state.ioLock;
+  let release;
+  state.ioLock = new Promise((r) => (release = r));
+  await before;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
 
 // ---- stored files (IndexedDB; this browser only) ----
 
@@ -205,7 +221,11 @@ function paint(ctx, { top, rows, data, width, channels }) {
 
 // One scan with the settings in the panel, painted into `canvas` as rows arrive.
 // `onStatus(text)` reports what's happening. Returns {width, height, seconds}.
-async function performScan(canvas, onStatus, onFraction = () => {}) {
+function performScan(...args) {
+  return exclusive(() => scanNow(...args));
+}
+
+async function scanNow(canvas, onStatus, onFraction = () => {}) {
   const dpi = Number(ui.dpi.value);
   const template = state.templates.get(dpi);
   if (!state.io) throw new Error("Connect the scanner first.");
@@ -241,7 +261,9 @@ async function performScan(canvas, onStatus, onFraction = () => {}) {
   let imaging = false;
   const levels = state.levels && Date.now() - state.levels.at < LEVELS_FRESH_MS ? state.levels.data : null;
   if (levels) log("reusing the analog levels measured earlier");
+  state.abort = new AbortController();
   const replayer = new Replayer(t, io, {
+    signal: state.abort.signal,
     levels,
     log,
     onRows: (r) => {
@@ -256,15 +278,22 @@ async function performScan(canvas, onStatus, onFraction = () => {}) {
       if (!imaging) onFraction((0.15 * i) / n); // setup and calibration: the first sliver
     },
   });
-  await replayer.run();
+  try {
+    await replayer.run();
+  } finally {
+    state.abort = null;
+  }
   if (!levels) state.levels = { data: replayer.afe, at: Date.now() };
   onFraction(1);
   return { width: t.width, height: t.height, seconds: (performance.now() - started) / 1000 };
 }
 
+ui.cancel.addEventListener("click", () => state.abort?.abort());
+
 ui.scan.addEventListener("click", async () => {
   state.scanning = true;
   refresh();
+  ui.cancel.hidden = false;
   ui.save.disabled = true;
   ui.progress.hidden = false;
   ui.progress.value = 0;
@@ -274,10 +303,12 @@ ui.scan.addEventListener("click", async () => {
     say(`Done: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s.`, "ok");
     ui.save.disabled = false;
   } catch (e) {
-    say(`Scan failed: ${e.message}`, "bad");
+    if (e.name === "AbortError") say("Scan cancelled.");
+    else say(`Scan failed: ${e.message}`, "bad");
     log(`error: ${e.stack || e.message}`);
   } finally {
     state.scanning = false;
+    ui.cancel.hidden = true;
     refresh();
   }
 });
@@ -330,7 +361,7 @@ async function boothScan() {
     log(`booth scan: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s`);
     if (booth.dir) await savePhoto(turned(booth.canvas, deg));
   } catch (e) {
-    booth.status.textContent = `Scan failed: ${e.message}`;
+    booth.status.textContent = e.name === "AbortError" ? "Cancelled." : `Scan failed: ${e.message}`;
     log(`error: ${e.stack || e.message}`);
   } finally {
     booth.busy = state.scanning = false;
@@ -366,8 +397,28 @@ booth.folder.addEventListener("click", async () => {
   }
 });
 
+// While the booth is open and idle, the scanner's own buttons start a scan.
+async function pollButtons() {
+  while (!booth.el.hidden) {
+    if (!booth.busy && state.io) {
+      try {
+        const button = await exclusive(() => pressedButton(state.io));
+        if (button && !booth.el.hidden) {
+          log(`scanner button ${button} pressed`);
+          boothScan();
+        }
+      } catch (e) {
+        log(`button poll: ${e.message}`);
+        await wait(2000);
+      }
+    }
+    await wait(300);
+  }
+}
+
 booth.start.addEventListener("click", async () => {
   booth.el.hidden = false;
+  pollButtons();
   document.body.style.overflow = "hidden";
   booth.hint.hidden = false;
   booth.status.textContent = "";
@@ -393,7 +444,8 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     boothScan();
   } else if (e.key === "Escape") {
-    leaveBooth();
+    if (booth.busy) state.abort?.abort();
+    else leaveBooth();
   }
 });
 document.addEventListener("fullscreenchange", () => {

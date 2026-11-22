@@ -1,0 +1,53 @@
+// Scanner controls outside a scan: front-panel buttons, aborting a scan,
+// sending the carriage home. From static analysis of Epson's plugin
+// (PROTOCOL.md, "Buttons, abort and home").
+
+import { hex } from "./bytes.js";
+
+const ACK = 0x06;
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The front-panel button pressed since the last query: 1-4, or 0 for none.
+// `1e 85`, no ACK, one byte. 1-4 are likely Start, Copy, E-mail, PDF.
+export async function pressedButton(io) {
+  await io.write(new Uint8Array([0x1e, 0x85]));
+  const r = await io.read(1);
+  return r[0] >= 1 && r[0] <= 4 ? r[0] : 0;
+}
+
+export async function status(io) {
+  await io.write(new Uint8Array([0x1b, 0x03]));
+  return io.read(2);
+}
+
+export const busy = (s) => Boolean(s[0] & 0x40);
+
+// Wait until `1b 03` says neither busy (0x40) nor 0x02, like Epson's plugin.
+export async function waitIdle(io, { timeoutMs = 30000, sleep = sleepMs } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const s = await status(io);
+    if (!(s[0] & 0x42)) return s;
+    if (Date.now() > deadline) throw new Error(`scanner stayed busy (status ${hex(s)})`);
+    await sleep(s[0] & 0x40 ? 200 : 50);
+  }
+}
+
+// Abort a scan in progress, as Epson's plugin does on cancel: `1e 18`,
+// wait a second, read one byte (not checked), then wait until idle. Any
+// image data still queued is read and dropped first.
+export async function abortScan(io, { sleep = sleepMs } = {}) {
+  await io.write(new Uint8Array([0x1e, 0x18]));
+  await sleep(1000);
+  await io.read(1).catch(() => {});
+  return waitIdle(io, { sleep });
+}
+
+// Send the carriage home (`1e fa`), as the plugin does before a scan when
+// the carriage isn't at position 0.
+export async function home(io, { sleep = sleepMs } = {}) {
+  await io.write(new Uint8Array([0x1e, 0xfa]));
+  const r = await io.read(1);
+  if (r[0] !== ACK) throw new Error(`home: scanner replied ${hex(r)}`);
+  return waitIdle(io, { sleep });
+}
