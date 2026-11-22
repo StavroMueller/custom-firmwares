@@ -181,7 +181,9 @@ hardware you own falls under the EULA's personal-use grant.
       hardware. See [PROTOCOL.md](PROTOCOL.md).
 - [x] Trace with the real scanner: a full 200 dpi scan, every transfer with
       full data (`tools/capture/`). First notes in [PROTOCOL.md](PROTOCOL.md).
-- [ ] Decode the raw image data, and the `1e` register commands.
+- [x] Decode the raw image data (`v500/raw.py`): colour and grey, 200 to 800 dpi.
+- [ ] Work out the remaining `1e` commands, then the calibration maths
+      (shading table, `1e 42` gains and offsets) so we can scan without Epson's plugin.
 - [x] Open firmware loader (pyusb): works on hardware, no Epson code involved.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.
 - [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).

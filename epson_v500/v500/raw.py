@@ -1,18 +1,22 @@
 """Turn the V500's raw image data into an RGB image.
 
-Measured from a 200 dpi colour scan made with Epson's driver (PROTOCOL.md,
-"Image data"). Our output matches Epson's for 99.9% of pixels; the rest are
-off by one level, except 0.04% along sharp colour edges.
+Measured from scans made with Epson's driver (PROTOCOL.md, "Image data").
+At 200 dpi our output matches Epson's for 99.8-99.9% of pixels, colour or
+grey. At 400 and 800 dpi Epson also smooths the image slightly; we don't, so
+there our output differs by a few levels.
 
 The pipeline:
 1. Each bulk read ends in an 8-byte trailer; drop it.
 2. The rest is lines of `raw_width` RGB pixels, 8 bits per sample,
    interleaved R G B.
+   Grey scans arrive as RGB too.
 3. The sensor's red, green and blue rows sit apart, so the same spot on the
-   glass reaches each colour on a different line. Red is `shift[0]` lines
-   later than blue, green `shift[1]`. The scanner sends extra lines for this.
+   glass reaches each colour on a different line: green 5 lines after blue
+   and red 10 lines after, at 200 dpi, scaling with the resolution. The
+   scanner sends the extra lines.
 4. Crop to the requested width.
-5. Colour-correct with Epson's matrix and truncate to 0..255.
+5. Colour: Epson's colour matrix. Grey: a weighted sum of the raw channels.
+   Both truncate to 0..255.
 """
 
 from collections.abc import Iterable
@@ -30,8 +34,14 @@ COLOR_MATRIX = np.array([
     [-0.01, -0.2503, 1.2603],
 ])
 
-# Lines between colours at 200 dpi: red, green, blue. Other resolutions unmeasured.
-LINE_SHIFT_200DPI = (10, 5, 0)
+# Grey from the raw channels, no colour matrix. Fitted to Epson's grey output.
+GREY_WEIGHTS = np.array([0.195, 0.61, 0.195])
+
+
+def line_shift(dpi: int) -> tuple[int, int, int]:
+    """Lines by which red, green and blue lag. Measured at 200, 400 and 800 dpi."""
+    k = 5 * dpi // 200
+    return (2 * k, k, 0)
 
 
 def payload(chunks: Iterable[bytes]) -> bytes:
@@ -48,10 +58,14 @@ def is_last(chunk: bytes) -> bool:
     return bool(chunk[-TRAILER + 1] & LAST_CHUNK)
 
 
-def decode(data: bytes, width: int, height: int,
-           shift: tuple[int, int, int] = LINE_SHIFT_200DPI,
+def decode(data: bytes, width: int, height: int, dpi: int = 200, grey: bool = False,
+           shift: tuple[int, int, int] | None = None,
            matrix: np.ndarray | None = COLOR_MATRIX) -> np.ndarray:
-    """Raw payload -> (height, width, 3) uint8 RGB image."""
+    """Raw payload -> (height, width, 3) RGB, or (height, width) grey, uint8.
+
+    `matrix=None` skips colour correction, for tests and for raw output.
+    """
+    shift = shift or line_shift(dpi)
     lines = height + max(shift)
     if len(data) % (lines * 3):
         raise ValueError(f"{len(data)} bytes don't split into {lines} RGB lines")
@@ -60,6 +74,9 @@ def decode(data: bytes, width: int, height: int,
         raise ValueError(f"raw lines are {raw_width} px, narrower than {width}")
     raw = np.frombuffer(data, np.uint8).reshape(lines, raw_width, 3)
     rgb = np.stack([raw[s:s + height, :width, c] for c, s in enumerate(shift)], axis=-1)
+    if grey:
+        # The small epsilon keeps exact sums like 0.195*100 + ... from truncating down.
+        return np.clip(np.floor(rgb @ GREY_WEIGHTS + 1e-9), 0, 255).astype(np.uint8)
     if matrix is None:
         return rgb
     corrected = rgb.astype(np.float64) @ np.asarray(matrix).T
@@ -89,9 +106,10 @@ def scan_from_capture(path: str) -> tuple[np.ndarray, dict]:
             blocks.append(chunks)
     if params is None or not blocks:
         raise ValueError("no scan parameters or no data in this capture")
-    xres, yres, _, _, width, height = struct.unpack_from("<6I", params)
-    image = decode(payload(blocks[-1]), width, height)
-    return image, {"xres": xres, "yres": yres, "width": width, "height": height}
+    xres, yres, _, _, width, height, mode = struct.unpack_from("<7I", params)
+    grey = mode == 0x800  # 0x813 for colour; only these two seen so far
+    image = decode(payload(blocks[-1]), width, height, dpi=yres, grey=grey)
+    return image, {"xres": xres, "yres": yres, "width": width, "height": height, "grey": grey}
 
 
 if __name__ == "__main__":
@@ -109,6 +127,7 @@ if __name__ == "__main__":
     Image.fromarray(image).save(args.out)
     print(f"{info['width']} x {info['height']} at {info['xres']} x {info['yres']} dpi -> {args.out}")
     if args.compare:
-        ref = np.asarray(Image.open(args.compare).convert("RGB")).astype(np.int16)
-        diff = np.abs(image.astype(np.int16) - ref).max(-1)
+        ref = np.asarray(Image.open(args.compare)).astype(np.int16)
+        diff = np.abs(image.astype(np.int16) - ref)
+        diff = diff.max(-1) if diff.ndim == 3 else diff
         print(f"identical pixels {(diff == 0).mean():.3%}, off by more than 1: {(diff > 1).mean():.3%}")

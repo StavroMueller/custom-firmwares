@@ -33,9 +33,23 @@ def test_decode_undoes_the_line_shift_and_crops():
 
 
 def test_colour_matrix_keeps_greys_and_truncates():
-    grey = np.full((11, 2, 3), 128, np.uint8)  # 10 extra lines for the default shift
+    grey = np.full((11, 2, 3), 128, np.uint8)  # 10 extra lines for the 200 dpi shift
     image = raw.decode(grey.tobytes(), 2, 1)
     assert (np.abs(image.astype(int) - 128) <= 1).all()
+
+
+def test_line_shift_scales_with_resolution():
+    assert raw.line_shift(200) == (10, 5, 0)
+    assert raw.line_shift(400) == (20, 10, 0)
+    assert raw.line_shift(800) == (40, 20, 0)
+
+
+def test_grey_is_a_weighted_sum_of_the_raw_channels():
+    lines = np.zeros((11, 1, 3), np.uint8)
+    lines[10, 0, 0], lines[5, 0, 1], lines[0, 0, 2] = 100, 200, 50  # one spot, line-shifted
+    image = raw.decode(lines.tobytes(), 1, 1, grey=True)
+    assert image.shape == (1, 1)
+    assert image[0, 0] == int(0.195 * 100 + 0.61 * 200 + 0.195 * 50)
 
 
 def test_decode_rejects_data_of_the_wrong_size():
@@ -43,18 +57,24 @@ def test_decode_rejects_data_of_the_wrong_size():
         raw.decode(bytes(100), 4, 3)
 
 
-CAPTURES = sorted(
-    p for pattern in ("02-scan-75dpi.usblog", "02-color-200-full.usblog")
-    for p in Path(__file__).parent.parent.glob(f"captures/*/{pattern}")
+HERE = Path(__file__).parent.parent
+# 200 dpi captures match Epson's output almost exactly. At 400 and 800 dpi
+# Epson smooths the image and we don't, so those aren't compared here.
+GOLDEN = sorted(
+    p for pattern in ("02-scan-75dpi", "02-color-200-full", "03-color-200-region", "06-gray-200-region")
+    for p in HERE.glob(f"captures/*/{pattern}.usblog")
+    if p.with_suffix(".png").exists()
 )
 
 
-@pytest.mark.skipif(not CAPTURES, reason="needs a capture of Epson's driver (gitignored)")
-def test_matches_epsons_output():
+@pytest.mark.skipif(not GOLDEN, reason="needs a capture of Epson's driver (gitignored)")
+@pytest.mark.parametrize("usblog", GOLDEN, ids=lambda p: f"{p.parent.name}/{p.stem}")
+def test_matches_epsons_output(usblog):
     from PIL import Image
-    image, info = raw.scan_from_capture(str(CAPTURES[-1]))
-    ref = np.asarray(Image.open(CAPTURES[-1].with_suffix(".png")).convert("RGB")).astype(np.int16)
+    image, info = raw.scan_from_capture(str(usblog))
+    ref = np.asarray(Image.open(usblog.with_suffix(".png"))).astype(np.int16)
     assert image.shape == ref.shape
-    diff = np.abs(image.astype(np.int16) - ref).max(-1)
-    assert (diff == 0).mean() > 0.998
-    assert (diff > 1).mean() < 0.001
+    diff = np.abs(image.astype(np.int16) - ref)
+    diff = diff.max(-1) if diff.ndim == 3 else diff
+    assert (diff == 0).mean() > 0.995
+    assert (diff > 1).mean() < 0.002

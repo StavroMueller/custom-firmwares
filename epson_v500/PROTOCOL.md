@@ -126,24 +126,35 @@ while data is being read, so bit 0x40 is probably "busy".
 ## Image data
 
 Decoded by `v500/raw.py`, checked against Epson's own output for the same
-scan: 99.9% of pixels identical, the rest off by one level, except 0.04%
-along sharp colour edges (test: `tests/test_raw.py`).
+scans (test: `tests/test_raw.py`). At 200 dpi, 99.8-99.9% of pixels are
+identical in colour and in grey. At 400 and 800 dpi Epson also smooths the
+image slightly (roughly a cross-shaped blur, centre weight 0.64), so ours is
+a little sharper and differs by a few levels.
 
 - Each `1e 47` bulk read ends in an 8-byte trailer, e.g.
   `02 00 b4 00 00 00 80 00`. Bit 0x80 of byte 1 is set on the last read.
-- After dropping trailers: lines of 1,920 RGB pixels, 8 bits, interleaved.
-  For a 1696 x 2339 scan the scanner sent 2,349 lines: 10 extra.
-- Line shift at 200 dpi: a spot on the glass reaches blue first, green 5
-  lines later, red 10 lines later.
-- The image is the leftmost `width` pixels of each line.
-- Colour correction happens on the host, with this matrix from Epson's
-  `libsane-epkowa` (offset `0x3ee70`), truncated to 0..255:
+- After dropping trailers: lines of RGB pixels, 8 bits, interleaved, in
+  colour **and** in grey mode. The line count is in `1e 41` (below).
+- Line shift: a spot on the glass reaches blue first, green `k` lines later
+  and red `2k` lines later, with `k = 5 x dpi / 200`. Measured at 200, 400
+  and 800 dpi. The scanner sends `2k` extra lines.
+- The image is the leftmost `width` pixels of each line. Raw line widths seen:
+  1,920 (full bed at 200 dpi), 768 (472 px wide at 200), 1,152 (944 at 400),
+  1,888 (1,888 at 800).
+- Colour correction happens on the host, with this matrix (Epson's
+  `libsane-epkowa` offset `0x3ee70`, also shown as the scanner's `--cct-1`
+  to `--cct-9` options), truncated to 0..255:
 
 ```
 R' =  1.247  R - 0.2041 G - 0.0429 B
 G' = -0.192  R + 1.2918 G - 0.0998 B
 B' = -0.01   R - 0.2503 G + 1.2603 B
 ```
+
+- Grey is computed on the host from the raw channels, without the matrix:
+  `floor(0.195 R + 0.61 G + 0.195 B)`.
+- The driver's default gamma is 1.8 (`--gamma-correction`); the 4,096-entry
+  curves uploaded with `1e 84` type `02` are presumably it.
 
 So the scanner already applies shading correction and the tables uploaded
 with `1e 84`. An open driver has to compute those tables itself (next
@@ -173,6 +184,42 @@ them from calibration.
 | | `1e 84` type `06`, 30,720 B | shading table: 16 bytes per pixel for 1,920 pixels (*varies*) |
 | scan | `1e 01` `94 6e 00 00 78 00 ff 01 ff 01 00 00` | move 28,308 steps while scanning |
 | | `1e 47` -> image | 294 reads |
+
+**Scan parameters across settings** (`1e 57`, u32 fields). Offsets are in
+pixels at the scan resolution (20 mm at 200 dpi = 157). Field 6 encodes the
+mode. Field 7 changes between scans with no pattern yet.
+
+| Scan | dpi | x off | y off | width | height | 6 | 7 |
+|---|---|---|---|---|---|---|---|
+| full bed, colour | 200 | 0 | 0 | 1696 | 2339 | `0x813` | 1036 |
+| 60 x 40 mm region, colour | 200 | 157 | 236 | 472 | 314 | `0x813` | 1070 |
+| same region | 400 | 315 | 472 | 944 | 629 | `0x813` | 1046 |
+| same region | 800 | 630 | 945 | 1888 | 1259 | `0x813` | 1034 |
+| same region, grey | 200 | 157 | 236 | 472 | 314 | `0x800` | 1162 |
+
+Field 8 is always `0x8000`.
+
+**`1e 41` (22 bytes) for the image pass**, as u16 at bytes 0, 2, 4:
+
+| Scan | bytes 0-1 | bytes 2-3 | bytes 4-5 = lines | byte 10 |
+|---|---|---|---|---|
+| full, 200 | 143 | 5263 | 2349 = 2339 + 10 | 12 |
+| region, 200 | 565 | 2613 | 324 = 314 + 10 | 12 |
+| region, 400 | 563 | 2099 | 649 = 629 + 20 | 6 |
+| region, 800 | 843 | 2731 | 1299 = 1259 + 40 | 3 |
+
+Byte 10 is 2400 / dpi. Bytes 0-3 look like a start and end on the sensor; the
+units are not worked out yet.
+
+**Carriage moves** (`1e 01`, u32 step count): every scan first moves 51 steps
+(position `1e 86` reads 51 after it), then a second move that grows with the
+top offset (194 for 0 mm; 2514, 2764 and 3023 for 30 mm at 200, 400 and
+800 dpi), then `1e 05`, then the scan itself: 28,308 steps for the full bed,
+about 4,010 for 40 mm. That is roughly 2,400 steps per inch while scanning.
+
+**16-bit scans hang the scanner.** Epson's backend read part of a 16-bit
+scan, then exited with no error. The scanner kept the unsent data and
+ignored the next session until it was power-cycled.
 
 **`1e 84` header, 8 bytes:** byte 0 table type; bytes 2-3 an address for
 type `02` (`0x3800` + `0x20` per colour); bytes 6-7 the length in units of
