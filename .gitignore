@@ -5,3 +5,11 @@ fiio_m3_pro/rockbox/
 fiio_m3_pro/build-*/
 fiio_m3_pro/sdcard/
 fiio_m3_pro/themes/tui-only/
+
+# Epson V500: never commit Epson's binaries (EULA forbids redistribution) or trace output
+epson_v500/**/*.so*
+epson_v500/**/esfw*.bin
+epson_v500/**/*.deb
+epson_v500/**/*.tar.gz
+epson_v500/tools/trace
+epson_v500/tools/writes.bin

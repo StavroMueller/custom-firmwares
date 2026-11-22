@@ -86,10 +86,26 @@ Ways to trigger a scan:
 
 ## Physical setup and safety
 
-- Mount the scanner glass-up on a sturdy stand at face height, so guests lean
-  in rather than lean on it. The platen glass is not built to hold a person's
-  weight. Put up a "press gently" sign.
-- The light bar is bright: tell guests to close their eyes.
+The glass is **vertical**: the scanner stands on its edge, like a window
+guests press against.
+
+- **The carriage now climbs against gravity.** The motor and belt were tuned
+  for flat use. A scan may jitter or stall going up, and run fast coming down.
+  Test both mounting orientations, with the hinge up and with the hinge down,
+  and pick the one that scans cleanly. Watch for banding and for lines that
+  come out squashed or stretched.
+- **The image comes out rotated.** The head sweeps vertically, so the booth
+  turns each image upright, and the live preview paints in the direction the
+  head actually moves. Both depend on the mounting, so they're a config
+  setting.
+- **Remove the lid.** It hinges open, and the lid with the transparency unit
+  is heavy. Taking it off avoids it swinging into someone's head.
+- **Bolt it down.** Use a frame that holds the scanner by its body, not its
+  glass, rated for people leaning in. Guests push sideways now, not down, so a
+  free-standing scanner will tip.
+- The platen glass is still not load-bearing. Put up a "press gently" sign.
+- The light bar is bright and now shines straight at eye level: tell guests
+  to close their eyes.
 - Wipe the glass between guests. Wipes go on the stand.
 - Use a powered USB connection, not a long chain of hubs.
 
@@ -108,6 +124,8 @@ Ways to trigger a scan:
 
 ## Open questions
 
+- Does the carriage scan cleanly when the scanner is on its edge? Which
+  mounting orientation works best?
 - Does the protocol expose the front-panel buttons?
 - What CPU does `esfw7C.bin` target? This matters for the custom-firmware
   side quest.

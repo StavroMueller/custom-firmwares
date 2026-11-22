@@ -110,8 +110,10 @@ hardware you own falls under the EULA's personal-use grant.
 ## Next steps
 
 - [x] Download the bundle, check its sha256, and do a first static pass on the plugin.
-- [ ] Trace harness: load the plugin with logging USB callbacks. Run it once
-      without the scanner to capture the firmware upload, then with the
-      scanner to capture each command.
+- [x] Trace harness (`tools/trace.c`): captured the firmware upload without
+      hardware. See [PROTOCOL.md](PROTOCOL.md).
+- [ ] Trace with the real scanner: every ESC/I command and the USB traffic it
+      turns into.
+- [ ] Open firmware loader (pyusb), first test on hardware.
 - [ ] Identify the CPU architecture of `esfw7C.bin`.
 - [ ] The driver plan and the photo booth design are in [DESIGN.md](DESIGN.md).
