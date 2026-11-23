@@ -359,6 +359,10 @@ Checked on the real scanner where noted.
   **Checked:** stopped mid-image, the scanner went back to `18 81` and the
   next scan was normal. This is the way out of a stuck scan without a power
   cycle.
+- **Before a scan** the page waits until `1b 03` isn't busy (it is, 2-5 s,
+  right after every scan: checked, `58 81` then `18 81` 3.2 s later), aborts
+  if it stays busy, then reads `1e 86` (u32, 0 at home: checked) and homes
+  the carriage if it isn't 0.
 - **Home**: `1e fa` + ACK sends the carriage home; `1e 86` then reads 0. The
   plugin does this before a scan if the carriage isn't at 0. After a normal
   scan the scanner returns home by itself, which keeps it busy for ~2.7 s.

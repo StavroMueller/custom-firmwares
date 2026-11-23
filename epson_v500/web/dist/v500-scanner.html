@@ -504,7 +504,42 @@ async function lampOn(io) {
   }
 }
 
-return { pressedButton, status, busy, waitIdle, abortScan, home, lampIsOn, lampOn };
+// Carriage position in motor steps: `1e 86`, no ACK, a u32 (0 at home, 51
+// after the 51-step calibration move). No answer while the carriage moves.
+async function position(io) {
+  await io.write(new Uint8Array([0x1e, 0x86]));
+  const r = await io.read(4);
+  return (r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24)) >>> 0;
+}
+
+// Get the scanner ready for a scan: let it finish driving home after the
+// last scan (2-5 s), abort a scan that never finished, and send the carriage
+// home if it isn't there. Throws "stuck" only if none of that works.
+async function ready(io, { log = () => {}, settleMs = 15000, sleep = sleepMs } = {}) {
+  let s = await status(io);
+  if (s[0] & 0x42) {
+    try {
+      s = await waitIdle(io, { timeoutMs: settleMs, sleep });
+    } catch {
+      log("scanner still busy: aborting the earlier scan");
+      try {
+        s = await abortScan(io, { sleep });
+      } catch (e) {
+        throw new Error(`The scanner is stuck from an earlier scan (${e.message}). Switch it off and on, then Connect and scan again.`);
+      }
+    }
+  }
+  if (s[0] & 0x10) { // firmware running: the position query exists
+    const at = await position(io);
+    if (at !== 0) {
+      log(`carriage at step ${at}, not home: sending it home`);
+      await home(io, { sleep });
+    }
+  }
+  return s;
+}
+
+return { pressedButton, status, busy, waitIdle, abortScan, home, lampIsOn, lampOn, position, ready };
 })();
 
 // ---- booth.js ----
@@ -519,7 +554,7 @@ const __m2 = (() => {
 // the counters and the clean-up buttons.
 
 const { compose, EFFECTS, applyEffect } = __m3;
-const { pressedButton, status } = __m4;
+const { pressedButton, ready, status } = __m4;
 const $ = (id) => document.getElementById(id);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -806,7 +841,17 @@ function setupBooth(ctx) {
           });
           if (busy) {
             booth.busySince ||= now;
-            if (now - booth.busySince > STUCK_AFTER_MS && booth.attention !== "stuck") attention("stuck");
+            if (now - booth.busySince > STUCK_AFTER_MS && booth.attention !== "stuck") {
+              // abort the scan that never finished; ask for a power cycle only if that fails
+              try {
+                await ctx.exclusive(() => ready(state.io, { log, settleMs: 0 }));
+                log("recovered the scanner from an unfinished scan");
+                booth.busySince = 0;
+              } catch (e) {
+                log(e.message);
+                attention("stuck");
+              }
+            }
           } else {
             booth.busySince = 0;
             if (booth.attention === "stuck" || booth.attention === "disconnected") attention(null);
@@ -2190,6 +2235,7 @@ const { fromMm, fullBed, retarget } = __m8;
 const { build, SUPPORTED } = __m13;
 const { Replayer, Template } = __m10;
 const { WebUsbTransport } = __m14;
+const { ready } = __m4;
 // The page as it arrived, before any script changed it: the source for a
 // personal copy with the firmware built in.
 const PRISTINE = "<!doctype html>\n" + document.documentElement.outerHTML;
@@ -2265,8 +2311,13 @@ async function store(op, ...args) {
 
 // ---- helpers ----
 
+const LOG_LINES = 500; // a booth runs for hours: keep the last lines only
+const logLines = [];
+
 function log(line) {
-  ui.log.textContent += line + "\n";
+  logLines.push(line);
+  if (logLines.length > LOG_LINES) logLines.splice(0, logLines.length - LOG_LINES);
+  ui.log.textContent = logLines.join("\n") + "\n";
   ui.log.scrollTop = ui.log.scrollHeight;
 }
 
@@ -2465,11 +2516,8 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   if (!state.io) throw new Error("Connect the scanner first.");
   if (!SUPPORTED.includes(dpi) && !template) throw new Error(`No way to scan at ${dpi} dpi.`);
   const io = state.io;
-  const before = await status(io);
-  if (before[0] & 0x40) {
-    // busy before we've asked for anything: an earlier scan never finished
-    throw new Error("The scanner is stuck from an earlier scan (status busy). Switch it off and on, then Connect and scan again.");
-  }
+  // still driving home from the last scan, or stuck: wait, abort, re-home
+  const before = await ready(io, { log });
   if (!isLoaded(before)) {
     if (!state.firmware) throw new Error("The scanner needs its firmware: pick Epson's driver download first.");
     onStatus("Uploading firmware…");
@@ -2497,7 +2545,8 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   let imaging = false;
   const levels = fresh(state.levels) && state.levels.key === levelsKey ? state.levels.data : null;
   if (levels) log("reusing the analog levels measured earlier");
-  const calibration = fresh(state.calibration) ? state.calibration : null;
+  // the white and dark references were read through those levels' gains
+  const calibration = levels && fresh(state.calibration) ? state.calibration : null;
   state.abort = new AbortController();
   const replayer = new Replayer(t, io, {
     signal: state.abort.signal,

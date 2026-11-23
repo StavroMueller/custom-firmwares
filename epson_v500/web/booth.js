@@ -8,7 +8,7 @@
 // the counters and the clean-up buttons.
 
 import { compose, EFFECTS, applyEffect } from "./effects.js";
-import { pressedButton, status } from "./v500/device.js";
+import { pressedButton, ready, status } from "./v500/device.js";
 
 const $ = (id) => document.getElementById(id);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -296,7 +296,17 @@ export function setupBooth(ctx) {
           });
           if (busy) {
             booth.busySince ||= now;
-            if (now - booth.busySince > STUCK_AFTER_MS && booth.attention !== "stuck") attention("stuck");
+            if (now - booth.busySince > STUCK_AFTER_MS && booth.attention !== "stuck") {
+              // abort the scan that never finished; ask for a power cycle only if that fails
+              try {
+                await ctx.exclusive(() => ready(state.io, { log, settleMs: 0 }));
+                log("recovered the scanner from an unfinished scan");
+                booth.busySince = 0;
+              } catch (e) {
+                log(e.message);
+                attention("stuck");
+              }
+            }
           } else {
             booth.busySince = 0;
             if (booth.attention === "stuck" || booth.attention === "disconnected") attention(null);

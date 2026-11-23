@@ -55,13 +55,31 @@ Start booth gives a full-screen view with a big Scan button:
   it needs no warm-up (a scan after it was off 4 minutes is as fast).
 - If the scanner is unplugged or stuck, a full-screen message says what to
   do, and the booth resumes by itself when it's back. A cancelled or failed
-  scan is aborted on the scanner, so it doesn't stay stuck.
+  scan is aborted on the scanner, so it doesn't stay stuck. Before each scan
+  the page waits for the carriage to finish driving home from the last one,
+  aborts a scan that never finished, and re-homes the carriage if it isn't
+  at 0; it asks for a power cycle only if all that fails.
 - Operator panel (press O, or tap the top-left corner three times): photo
   and error counts, recalibrate, "glass wiped", delete this session's
   photos, leave.
 
 For an unattended machine, run Chrome with `--kiosk --kiosk-printing` (full
-screen, prints without a dialog). Any laptop, mini PC or Android
+screen, prints without a dialog). The scanner has no USB serial number, so
+Chrome can't remember that the page may use it: after Chrome restarts,
+someone has to click Connect and pick it again (unplugging and replugging
+while the page is open is fine). To skip that, allow it by policy, e.g. on
+Linux `/etc/opt/chrome/policies/managed/v500.json` (Chromium:
+`/etc/chromium/policies/managed/`):
+
+```json
+{ "WebUsbAllowDevicesForUrls": [ { "devices": [ { "vendor_id": 1208, "product_id": 304 } ], "urls": ["http://localhost:8000"] } ] }
+```
+
+and serve the page on localhost (`python3 -m http.server` in `web/dist`).
+On Windows and macOS the same policy goes in the registry or a profile.
+The page then connects by itself when it opens. (Untested: I couldn't
+write system policy on this machine. Whether the policy accepts a
+`file://` page is also unchecked.) Any laptop, mini PC or Android
 tablet with Chrome can run it. iPads can't, because Safari has no WebUSB.
 
 The page scans faster than Epson's driver: a 60 x 40 mm area at 200 dpi

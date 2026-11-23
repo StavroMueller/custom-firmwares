@@ -69,3 +69,38 @@ export async function lampOn(io) {
     if (r[0] !== ACK) throw new Error(`lamp: scanner replied ${hex(r)}`);
   }
 }
+
+// Carriage position in motor steps: `1e 86`, no ACK, a u32 (0 at home, 51
+// after the 51-step calibration move). No answer while the carriage moves.
+export async function position(io) {
+  await io.write(new Uint8Array([0x1e, 0x86]));
+  const r = await io.read(4);
+  return (r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24)) >>> 0;
+}
+
+// Get the scanner ready for a scan: let it finish driving home after the
+// last scan (2-5 s), abort a scan that never finished, and send the carriage
+// home if it isn't there. Throws "stuck" only if none of that works.
+export async function ready(io, { log = () => {}, settleMs = 15000, sleep = sleepMs } = {}) {
+  let s = await status(io);
+  if (s[0] & 0x42) {
+    try {
+      s = await waitIdle(io, { timeoutMs: settleMs, sleep });
+    } catch {
+      log("scanner still busy: aborting the earlier scan");
+      try {
+        s = await abortScan(io, { sleep });
+      } catch (e) {
+        throw new Error(`The scanner is stuck from an earlier scan (${e.message}). Switch it off and on, then Connect and scan again.`);
+      }
+    }
+  }
+  if (s[0] & 0x10) { // firmware running: the position query exists
+    const at = await position(io);
+    if (at !== 0) {
+      log(`carriage at step ${at}, not home: sending it home`);
+      await home(io, { sleep });
+    }
+  }
+  return s;
+}

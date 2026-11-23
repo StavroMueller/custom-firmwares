@@ -8,6 +8,7 @@ import { fromMm, fullBed, retarget } from "./v500/geometry.js";
 import { build, SUPPORTED } from "./v500/protocol.js";
 import { Replayer, Template } from "./v500/replay.js";
 import { WebUsbTransport } from "./v500/webusb.js";
+import { ready } from "./v500/device.js";
 
 // The page as it arrived, before any script changed it: the source for a
 // personal copy with the firmware built in.
@@ -84,8 +85,13 @@ async function store(op, ...args) {
 
 // ---- helpers ----
 
+const LOG_LINES = 500; // a booth runs for hours: keep the last lines only
+const logLines = [];
+
 function log(line) {
-  ui.log.textContent += line + "\n";
+  logLines.push(line);
+  if (logLines.length > LOG_LINES) logLines.splice(0, logLines.length - LOG_LINES);
+  ui.log.textContent = logLines.join("\n") + "\n";
   ui.log.scrollTop = ui.log.scrollHeight;
 }
 
@@ -284,11 +290,8 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   if (!state.io) throw new Error("Connect the scanner first.");
   if (!SUPPORTED.includes(dpi) && !template) throw new Error(`No way to scan at ${dpi} dpi.`);
   const io = state.io;
-  const before = await status(io);
-  if (before[0] & 0x40) {
-    // busy before we've asked for anything: an earlier scan never finished
-    throw new Error("The scanner is stuck from an earlier scan (status busy). Switch it off and on, then Connect and scan again.");
-  }
+  // still driving home from the last scan, or stuck: wait, abort, re-home
+  const before = await ready(io, { log });
   if (!isLoaded(before)) {
     if (!state.firmware) throw new Error("The scanner needs its firmware: pick Epson's driver download first.");
     onStatus("Uploading firmware…");
@@ -316,7 +319,8 @@ async function scanNow(canvas, onStatus, onFraction = () => {}) {
   let imaging = false;
   const levels = fresh(state.levels) && state.levels.key === levelsKey ? state.levels.data : null;
   if (levels) log("reusing the analog levels measured earlier");
-  const calibration = fresh(state.calibration) ? state.calibration : null;
+  // the white and dark references were read through those levels' gains
+  const calibration = levels && fresh(state.calibration) ? state.calibration : null;
   state.abort = new AbortController();
   const replayer = new Replayer(t, io, {
     signal: state.abort.signal,
