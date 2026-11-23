@@ -96,7 +96,19 @@ export async function ready(io, { log = () => {}, settleMs = 15000, sleep = slee
     }
   }
   if (s[0] & 0x10) { // firmware running: the position query exists
-    const at = await position(io);
+    let at;
+    try {
+      at = await position(io);
+    } catch {
+      // idle by status but not answering: left mid-scan (checked: an abort frees it)
+      log("scanner not answering the position query: aborting the earlier scan");
+      try {
+        await abortScan(io, { sleep });
+        at = await position(io);
+      } catch (e) {
+        throw new Error(`The scanner is stuck from an earlier scan (${e.message}). Switch it off and on, then Connect and scan again.`);
+      }
+    }
     if (at !== 0) {
       log(`carriage at step ${at}, not home: sending it home`);
       await home(io, { sleep });

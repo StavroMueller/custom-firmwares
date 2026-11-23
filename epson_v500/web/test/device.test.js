@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { position, ready } from "../v500/device.js";
 
 // A scanner that answers status, position, abort and home from a script.
-function fakeScanner({ busyFor = 0, at = 0, stuck = false }) {
+function fakeScanner({ busyFor = 0, at = 0, stuck = false, deaf = false }) {
   const sent = [];
   let polls = 0, pending = [];
   return {
@@ -14,11 +14,14 @@ function fakeScanner({ busyFor = 0, at = 0, stuck = false }) {
       if (cmd === "1b 03") {
         const busy = stuck || polls++ < busyFor;
         pending.push([busy ? 0x58 : 0x18, 0x81]);
-      } else if (cmd === "1e 86") pending.push([at & 0xff, at >> 8, 0, 0]);
-      else if (cmd === "1e 18") { stuck = false; pending.push([0x06]); }
+      } else if (cmd === "1e 86") { if (!deaf) pending.push([at & 0xff, at >> 8, 0, 0]); }
+      else if (cmd === "1e 18") { stuck = deaf = false; pending.push([0x06]); }
       else if (cmd === "1e fa") { at = 0; pending.push([0x06]); }
     },
-    async read() { return new Uint8Array(pending.shift()); },
+    async read() {
+      if (!pending.length) throw new Error("read timed out");
+      return new Uint8Array(pending.shift());
+    },
   };
 }
 const sleep = async () => {};
@@ -44,4 +47,10 @@ test("ready leaves a homed scanner alone", async () => {
   const s = fakeScanner({});
   await ready(s, { sleep });
   assert.deepEqual(s.sent, ["1b 03", "1e 86"]);
+});
+
+test("ready frees a scanner that reports idle but ignores motor commands", async () => {
+  const s = fakeScanner({ deaf: true });
+  await ready(s, { sleep });
+  assert.deepEqual(s.sent, ["1b 03", "1e 86", "1e 18", "1b 03", "1e 86"]);
 });

@@ -224,7 +224,16 @@ function base(dpi, { grey = false, gamma = 1.8, period = null, fast = false } = 
 
 // The command sequence for scanning `area` (pixels, geometry.js region) at `dpi`.
 export function build(dpi, area, options = {}) {
-  return retarget(base(dpi, options), area);
+  const t = retarget(base(dpi, options), area);
+  if (options.period || !options.fast) return t;
+  // The fast period is too short for the widest windows: at 200 dpi from
+  // 197 mm the window ends at sensor unit 5,263 and 2,688 hangs the white
+  // read; the shortest that works is between 2,832 and 2,856 (checked),
+  // just over end / 2 + 200. Keep a margin.
+  const w = t.groups.findLast((g) => g.command === 0x1e41).steps.find((x) => x.out).data;
+  const end = w[2] | (w[3] << 8);
+  const need = Math.ceil((Math.ceil(end / 2) + 272) / 24) * 24;
+  return need > RESOLUTIONS[dpi].fastPeriod ? retarget(base(dpi, { ...options, period: need }), area) : t;
 }
 
 export const SUPPORTED = Object.keys(RESOLUTIONS).map(Number);

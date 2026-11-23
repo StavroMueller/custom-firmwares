@@ -73,3 +73,25 @@ test("reusing a calibration skips the reference reads and the lamp off/on", asyn
   const r3 = new Replayer(build(200, { ...area, width: 800 }), new GeometryScanner(), { sleep: async () => {}, calibration: r1.calibration });
   assert.equal(r3.reuseCal, null);
 });
+
+test("wide fast scans get a line period long enough for the window", async () => {
+  const { fromMm } = await import("../v500/geometry.js");
+  const period = (t) => { const d = t.groups.find((g) => g.command === 0x1e21).steps.find((x) => x.out).data; return d[0] | (d[1] << 8); };
+  assert.equal(period(build(200, fromMm(200, 0, 20, 196, 3), { fast: true })), 2688);
+  assert.ok(period(build(200, fromMm(200, 0, 20, 216, 3), { fast: true })) > 2856); // 2,832 hangs (checked)
+});
+
+test("a shading table over 64 KiB goes up in pieces at consecutive addresses", async () => {
+  const { fromMm } = await import("../v500/geometry.js");
+  const dev = new GeometryScanner();
+  await new Replayer(build(1600, fromMm(1600, 0, 0, 215, 1)), dev, { sleep: async () => {} }).run();
+  const sent = dev.sent(0x1e84);
+  const headers = sent.filter((d, i) => d.length === 8 && d[0] === 0x06 && sent[i + 1]);
+  assert.equal(headers.length, 2);
+  const len = (h) => h[5] | (h[6] << 8) | (h[7] << 16);
+  const addr = (h) => h[2] | (h[3] << 8);
+  assert.equal(len(headers[0]), 255 * 256);
+  assert.equal(addr(headers[0]), 0x108);
+  assert.equal(addr(headers[1]), 0x108 + 255);
+  assert.equal(len(headers[0]) + len(headers[1]), 13536 * 6 + 0); // the whole window
+});

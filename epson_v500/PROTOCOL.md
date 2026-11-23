@@ -341,6 +341,18 @@ the area (~1 s for 30 mm); speeding up for the scan (~0.7 s); the image.
   pass gets 18-32% faster. Noise rises 6% at 400 dpi, 14% at 800, 20% at 1600.
   The motor settings follow from the period with the plugin's formulas,
   which reproduce every capture.
+- **Limits found the hard way** (both hang the scan until an abort):
+  - One `1e 84` upload must be under 64 KiB: a 65,472-byte shading table
+    works, 65,664 doesn't (1600 dpi wider than 173 mm). Bytes 2-3 of the
+    header are the address in 256-byte units (the identity tables sit at
+    0x1ffc-0x1ffe, the gamma tables 0x20 apart), so the driver sends a
+    bigger table as pieces of 65,280 bytes at consecutive addresses.
+    Checked: full width at 1600 dpi, no seam.
+  - The line period must exceed about half the window's end (sensor
+    units) + 200: at 200 dpi from 197 mm wide the window ends at 5,263, and
+    2,832 hangs the white read while 2,856 works. Only the fast period
+    (2,688) at 200 dpi is short enough to hit it; the driver lengthens it
+    there (2,904).
 - The constant `1e 84` type 07 table takes ~190 ms: the scanner works
   before it ACKs (every other table ACKs at once). It survives between
   scans, even the session's `1b 40` resets, so a scan that reuses the levels
@@ -368,6 +380,13 @@ Checked on the real scanner where noted.
   **Checked:** stopped mid-image, the scanner went back to `18 81` and the
   next scan was normal. This is the way out of a stuck scan without a power
   cycle.
+- **A scan that fails before the image** (checked: a read timing out
+  during setup) leaves the scanner reporting idle (`18 01`) while it
+  ignores motor commands: `1e 86` and `1e fa` get no answer, `1e 85` and
+  `1b 03` still do. `1e 18` frees it (ACK, then busy while the carriage
+  returns; once it left the carriage at step 3,153, not home). `1e 18` on
+  an idle scanner is harmless (ACK, still idle, next scan normal), so the
+  driver aborts after any failure, not only once the image read started.
 - **Before a scan** the page waits until `1b 03` isn't busy (it is, 2-5 s,
   right after every scan: checked, `58 81` then `18 81` 3.2 s later), aborts
   if it stays busy, then reads `1e 86` (u32, 0 at home: checked) and homes

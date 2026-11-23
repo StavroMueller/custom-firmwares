@@ -16,6 +16,7 @@ import { parseUsblog } from "./usblog.js";
 export const POLL_READY = 0x1e04;
 export const STATUS = 0x1b03;
 export const BUSY = 0x40;
+const TABLE_MAX = 255 * 256; // bytes per 1e 84 upload: whole 256-byte units, and whole pixels (6 bytes)
 const isType07 = (g) => g.command === 0x1e84 && g.steps[1]?.out && g.steps[1].data[0] === 0x07;
 
 export const CMD = { MOVE: 0x1e01, AFE: 0x1e31, LEVELS: 0x1e42, WINDOW: 0x1e41, READ: 0x1e47, PARAMS: 0x1e57, AFE_READ: 0x1e92, TABLE: 0x1e84 };
@@ -98,7 +99,7 @@ export class Replayer {
     this.pollIntervalMs = pollIntervalMs;
     this.reuseLevels = Boolean(levels);
     this.signal = signal; // an AbortSignal: stops the scan and aborts it on the scanner
-    this.moving = false; // the image read has started: stopping now needs an abort
+    this.sentAny = false; // a command went out: stopping now needs an abort
     this.reads = [];
     this.afe = levels;
     this.probeOff = null;
@@ -145,14 +146,13 @@ export class Replayer {
     return start >= 0 && darkRead >= 0 && lampOn >= 0 ? [start, lampOn] : null;
   }
 
-  // Runs the scan. If it's stopped (signal) or fails once the image read
-  // has started, the scanner is told to abort (`1e 18`), so it ends up idle
-  // instead of stuck busy.
+  // Runs the scan. If it's stopped (signal) or fails, the scanner is told
+  // to abort (`1e 18`), so it ends up idle instead of stuck.
   async run() {
     try {
       return await this.steps();
     } catch (e) {
-      if (this.moving) {
+      if (this.sentAny) {
         this.log(`stopping the scanner after: ${e.message}`);
         try {
           await abortScan(this.io, { sleep: this.sleep });
@@ -208,9 +208,14 @@ export class Replayer {
     const n = this.occurrence[i];
     const isImage = g.command === CMD.READ && n === this.totalReads - 1;
     if (isImage) this.startImage();
-    if (isImage) this.moving = true; // like Epson's plugin: abort only once the image read has started
-    await this.io.write(commandBytes(g.command));
+    // Epson aborts only once the image read has started, but a scan that
+    // fails before it (checked: a read timing out during setup) leaves the
+    // scanner reporting idle while it ignores motor commands (1e 86, 1e fa)
+    // until a 1e 18. An abort on an idle scanner is harmless (checked).
+    this.sentAny = true;
     const sent = this.substitute(g, n);
+    if (g.command === CMD.TABLE && sent[1]?.length > TABLE_MAX) return this.splitTable(sent);
+    await this.io.write(commandBytes(g.command));
     let p = 0;
     const got = [];
     for (const step of g.steps) {
@@ -228,6 +233,33 @@ export class Replayer {
       if (isImage) this.imageBlock(reply);
     }
     this.after(g, n, got);
+  }
+
+  // One 1e 84 upload must stay under 64 KiB (checked at 1600 dpi: a 65,472
+  // byte shading table works, 65,664 times out). Send a bigger table as
+  // consecutive pieces: header bytes 2-3 are the address in 256-byte units.
+  async splitTable([header, data]) {
+    const base = header[2] | (header[3] << 8);
+    for (let off = 0; off < data.length; off += TABLE_MAX) {
+      const piece = data.subarray(off, off + TABLE_MAX);
+      const h = header.slice();
+      const addr = base + off / 256;
+      h[2] = addr & 0xff;
+      h[3] = addr >> 8;
+      h[5] = piece.length & 0xff;
+      h[6] = (piece.length >> 8) & 0xff;
+      h[7] = piece.length >> 16;
+      await this.io.write(commandBytes(CMD.TABLE));
+      await this.expectAck(CMD.TABLE);
+      await this.io.write(h);
+      await this.io.write(piece);
+      await this.expectAck(CMD.TABLE);
+    }
+  }
+
+  async expectAck(cmd) {
+    const r = await this.io.read(1);
+    if (!(r.length === 1 && r[0] === ACK)) throw new Error(`${hex(commandBytes(cmd))}: scanner replied ${hex(r)}, expected ACK`);
   }
 
   substitute(g, n) {
