@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your scan</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; gap: 1rem;
+           background: #0b0814; color: #f4f0ff; font-family: -apple-system, system-ui, sans-serif;
+           text-align: center; padding: 1.5rem; box-sizing: border-box; }
+    img { max-width: 100%; max-height: 75vh; border-radius: 12px; }
+    a { display: inline-block; padding: 0.9rem 2.5rem; border-radius: 999px; background: #ff3d8b;
+        color: white; font-weight: 700; text-decoration: none; }
+    p { color: #9a90b8; margin: 0; }
+  </style>
+</head>
+<body>
+  <img src="/photos/{{id}}.jpg" alt="Your scan">
+  <a href="/photos/{{id}}.jpg" download="scan-{{id}}.jpg">Save photo</a>
+  <p>On iPhone: press and hold the photo, then “Save to Photos”.</p>
+</body>
+</html>

@@ -1,0 +1,2907 @@
+<!-- Built by web/tools/build.mjs from web/: edit those, not this file. -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V500 Scanner</title>
+  <style>
+:root {
+  --bg: #f6f5f2;
+  --panel: #ffffff;
+  --ink: #1d1c1a;
+  --muted: #6b6862;
+  --line: #e2dfd8;
+  --accent: #2f5fd0;
+  --accent-ink: #ffffff;
+  --bad: #b3261e;
+  --ok: #1e7a3c;
+  --canvas-bg: #e9e6df;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615;
+    --panel: #1f1f1d;
+    --ink: #ecebe7;
+    --muted: #a09d96;
+    --line: #34332f;
+    --accent: #7fa2ff;
+    --accent-ink: #10131a;
+    --bad: #ff8a80;
+    --ok: #7fd39a;
+    --canvas-bg: #262624;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header { padding: 24px 24px 8px; }
+h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+.sub { margin: 4px 0 0; color: var(--muted); }
+
+main {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) 1fr;
+  gap: 20px;
+  padding: 16px 24px 24px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  main { grid-template-columns: 1fr; padding: 12px 16px 16px; }
+  header { padding: 16px 16px 4px; }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px 18px;
+}
+
+h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 18px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+h2:first-child { margin-top: 0; }
+.n {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+.grid.four { grid-template-columns: repeat(4, 1fr); }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.file { margin: 8px 0 10px; }
+label.check { display: block; margin: 6px 0; color: var(--ink); }
+label.check input { margin-right: 6px; }
+label.check.bottom { align-self: end; padding-bottom: 8px; }
+.file > span:first-child { color: var(--ink); }
+
+input, select, button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-width: 0;
+}
+input[type="file"] { padding: 6px; }
+
+button { cursor: pointer; }
+a.button {
+  display: inline-block; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; text-decoration: none;
+}
+body.dropping { outline: 4px dashed var(--accent); outline-offset: -8px; }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 8px 22px; }
+button.link { background: none; border: none; padding: 0; color: var(--muted); text-decoration: underline; font-size: 13px; }
+
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+code { font-size: 0.92em; }
+
+progress { width: 100%; height: 8px; accent-color: var(--accent); }
+.status { min-height: 1.4em; margin: 8px 0; }
+.status.bad { color: var(--bad); }
+.status.ok { color: var(--ok); }
+
+details { margin-top: 8px; }
+details.advanced { margin: 4px 0 10px; }
+summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+pre {
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+.banner {
+  margin: 8px 24px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  border-radius: 8px;
+}
+
+.preview {
+  background: var(--canvas-bg);
+  border-radius: 12px;
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: hidden;
+}
+canvas {
+  max-width: 100%;
+  max-height: 80vh;
+  image-rendering: auto;
+  box-shadow: 0 1px 8px rgb(0 0 0 / 0.15);
+  background: #fff;
+}
+canvas[width="0"] { display: none; }
+
+/* booth mode */
+.booth {
+  position: fixed;
+  inset: 0;
+  background: #0d0d0c;
+  color: #f2f1ed;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  z-index: 10;
+}
+.booth { grid-template-rows: 1fr auto auto; }
+.booth-stage { position: relative; display: grid; place-items: center; overflow: hidden; padding: 16px; }
+.booth-stage canvas, .booth-stage img { max-width: 96vw; max-height: calc(100vh - 230px); box-shadow: 0 2px 30px rgb(0 0 0 / 0.6); }
+.booth-stage canvas.turned { max-width: calc(100vh - 230px); max-height: 96vw; }
+.booth-strip { display: flex; gap: 8px; padding: 0 24px; height: 84px; overflow-x: auto; }
+.booth-strip img { height: 76px; border-radius: 4px; cursor: pointer; opacity: 0.85; }
+.booth-strip img:hover { opacity: 1; }
+.booth-attention {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  background: rgb(10 10 9 / 0.92); padding: 24px;
+}
+.booth-attention h2 { font-size: clamp(28px, 5vw, 56px); color: #ffd66b; text-transform: none; letter-spacing: 0; display: block; margin: 0 0 12px; }
+.booth-attention p { font-size: clamp(18px, 2.6vw, 30px); max-width: 60ch; margin: 0 auto; }
+.booth-corner { position: absolute; top: 0; left: 0; width: 64px; height: 64px; }
+.booth-operator {
+  position: absolute; top: 24px; left: 24px; background: #1f1f1d; color: #ecebe7; border: 1px solid #3a3a33;
+  border-radius: 12px; padding: 16px 18px; max-width: min(520px, 92vw); z-index: 2;
+}
+.booth-operator h2 { color: #a09d96; margin: 0 0 8px; }
+.booth-operator pre { background: #161615; border-color: #34332f; color: #ecebe7; }
+.booth-operator button { background: #26261f; color: #f2f1ed; border-color: #3a3a33; }
+.booth-print { position: absolute; width: 0; height: 0; border: 0; visibility: hidden; }
+.booth-count {
+  position: absolute;
+  font-size: min(40vh, 40vw);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 4px 40px rgb(0 0 0 / 0.7);
+}
+.booth-hint { position: absolute; font-size: clamp(20px, 3.4vw, 40px); text-align: center; max-width: 80vw; margin: 0; }
+.booth-bar { display: flex; align-items: center; gap: 16px; padding: 16px 24px 24px; }
+.booth-bar button { background: #26261f; color: #f2f1ed; border-color: #3a3a33; }
+.booth-status { flex: 1; text-align: center; font-size: 20px; color: #c9c7bf; }
+.booth-go.primary { font-size: 28px; padding: 18px 56px; border-radius: 14px; background: #2f5fd0; border-color: #2f5fd0; color: #fff; }
+</style>
+  <script type="module">
+// ---- v500/bundle.js ----
+const __m1 = (() => {
+// Find esfw7C.bin inside Epson's Linux driver download, in the browser.
+//
+// The bundle (iscan-gt-x770-bundle-*.tar.gz) is gzip -> tar, holding the
+// plugin package iscan-plugin-gt-x770_*.deb: an `ar` archive whose
+// data.tar.gz holds usr/share/iscan/esfw7C.bin. Everything is gzip, which
+// browsers decompress natively (DecompressionStream); no library needed.
+
+const FIRMWARE = "esfw7C.bin";
+
+async function gunzip(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+const text = (b) => new TextDecoder("latin1").decode(b).replace(/\0.*$/s, "").trim();
+
+// Files in a tar archive: [{name, data}].
+function* untar(tar) {
+  for (let pos = 0; pos + 512 <= tar.length; ) {
+    const header = tar.subarray(pos, pos + 512);
+    if (header.every((b) => b === 0)) return;
+    const name = text(header.subarray(345, 500)) + text(header.subarray(0, 100)); // ustar prefix + name
+    const size = parseInt(text(header.subarray(124, 136)) || "0", 8);
+    const type = String.fromCharCode(header[156] || 0x30);
+    pos += 512;
+    if (type === "0" || type === "\0") yield { name, data: tar.subarray(pos, pos + size) };
+    pos += Math.ceil(size / 512) * 512;
+  }
+}
+
+// Members of an `ar` archive (a .deb): [{name, data}].
+function* unar(ar) {
+  if (text(ar.subarray(0, 8)) !== "!<arch>") throw new Error("not a .deb package");
+  for (let pos = 8; pos + 60 <= ar.length; ) {
+    const name = text(ar.subarray(pos, pos + 16)).replace(/\/$/, "");
+    const size = parseInt(text(ar.subarray(pos + 48, pos + 58)), 10);
+    yield { name, data: ar.subarray(pos + 60, pos + 60 + size) };
+    pos += 60 + size + (size % 2);
+  }
+}
+
+async function fromDeb(deb) {
+  for (const m of unar(deb)) {
+    if (!m.name.startsWith("data.tar")) continue;
+    if (!m.name.endsWith(".gz")) throw new Error(`${m.name}: only gzip packages are supported`);
+    for (const f of untar(await gunzip(m.data))) if (f.name.endsWith("/" + FIRMWARE)) return f.data.slice();
+  }
+  return null;
+}
+
+// Accepts the bundle (.tar.gz), the plugin .deb, or esfw7C.bin itself.
+// Returns the firmware bytes.
+async function findFirmware(bytes) {
+  bytes = new Uint8Array(bytes);
+  if (text(bytes.subarray(0, 4)) === "EDLA") return bytes; // already the firmware
+  if (text(bytes.subarray(0, 8)) === "!<arch>") {
+    const fw = await fromDeb(bytes);
+    if (fw) return fw;
+    throw new Error("no esfw7C.bin in that package; pick the gt-x770 plugin or the whole bundle");
+  }
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    for (const f of untar(await gunzip(bytes))) {
+      if (f.name.endsWith("/" + FIRMWARE)) return f.data.slice();
+      if (/iscan-plugin-gt-x770.*\.deb$/.test(f.name)) {
+        const fw = await fromDeb(f.data);
+        if (fw) return fw;
+      }
+    }
+    throw new Error("no V500 firmware in that archive; it should be Epson's iscan-gt-x770 bundle");
+  }
+  throw new Error("pick Epson's driver bundle (.tar.gz), its plugin .deb, or esfw7C.bin");
+}
+
+return { gunzip, untar, unar, findFirmware };
+})();
+
+// ---- effects.js ----
+const __m3 = (() => {
+// Looks for booth photos, and the framed layout they're saved and printed in.
+// Pure pixel work on RGBA data, so it runs anywhere (tests run it in Node).
+
+const EFFECTS = {
+  natural: "Natural",
+  mono: "Black & white",
+  contrast: "High contrast",
+  photocopy: "Photocopy",
+};
+
+const luma = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+
+// Apply an effect in place to RGBA pixels (an ImageData's .data).
+function applyEffect(px, effect) {
+  if (effect === "natural" || !EFFECTS[effect]) return px;
+  for (let i = 0; i < px.length; i += 4) {
+    let v = luma(px[i], px[i + 1], px[i + 2]);
+    if (effect === "contrast") {
+      // an S-curve: deeper shadows, brighter highlights
+      const x = v / 255;
+      v = 255 * (x < 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x));
+    } else if (effect === "photocopy") {
+      // hard black and white with a little toner grain
+      v = clamp((v - 128) * 3.2 + 150 + ((i * 2654435761) % 23) - 11);
+    }
+    px[i] = px[i + 1] = px[i + 2] = v;
+  }
+  return px;
+}
+
+// Sizes for a framed photo: a white border and a band at the bottom for the
+// caption, in proportion to the photo.
+function frameLayout(width, height, { caption = "", date = "" } = {}) {
+  const border = Math.round(Math.max(width, height) * 0.04);
+  const band = caption || date ? Math.round(Math.max(width, height) * 0.12) : 0;
+  return { border, band, width: width + 2 * border, height: height + 2 * border + band };
+}
+
+// Draw `src` (a canvas), turned clockwise by `deg`, into a new canvas with
+// the frame and caption. makeCanvas(w, h) creates the canvas (DOM or test).
+function compose(src, { deg = 0, caption = "", date = "", framed = true, makeCanvas }) {
+  const side = deg % 180 !== 0;
+  const w = side ? src.height : src.width;
+  const h = side ? src.width : src.height;
+  const layout = framed ? frameLayout(w, h, { caption, date }) : { border: 0, band: 0, width: w, height: h };
+  const c = makeCanvas(layout.width, layout.height);
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.save();
+  ctx.translate(layout.border + w / 2, layout.border + h / 2);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  ctx.restore();
+  if (layout.band) {
+    const y = layout.border + h + layout.band / 2;
+    ctx.fillStyle = "#222";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const size = Math.round(layout.band * (date && caption ? 0.32 : 0.42));
+    ctx.font = `600 ${size}px system-ui, sans-serif`;
+    if (caption && date) {
+      ctx.fillText(caption, c.width / 2, y - size * 0.6);
+      ctx.font = `400 ${Math.round(size * 0.7)}px system-ui, sans-serif`;
+      ctx.fillStyle = "#666";
+      ctx.fillText(date, c.width / 2, y + size * 0.7);
+    } else {
+      ctx.fillText(caption || date, c.width / 2, y);
+    }
+  }
+  return c;
+}
+
+return { EFFECTS, applyEffect, frameLayout, compose };
+})();
+
+// ---- v500/bytes.js ----
+const __m5 = (() => {
+// Small helpers for little-endian byte blocks.
+
+function concat(parts) {
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const p of parts) {
+    out.set(p, pos);
+    pos += p.length;
+  }
+  return out;
+}
+
+function view(bytes) {
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+function u16(bytes, offset) {
+  return view(bytes).getUint16(offset, true);
+}
+
+function u32(bytes, offset) {
+  return view(bytes).getUint32(offset, true);
+}
+
+function setU16(bytes, offset, value) {
+  view(bytes).setUint16(offset, value, true);
+}
+
+function setU32(bytes, offset, value) {
+  view(bytes).setUint32(offset, value, true);
+}
+
+function hex(bytes) {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(" ");
+}
+
+function equal(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+// A two-byte command as a number: 1e 41 -> 0x1e41.
+function commandId(bytes) {
+  return (bytes[0] << 8) | bytes[1];
+}
+
+function commandBytes(id) {
+  return new Uint8Array([id >> 8, id & 0xff]);
+}
+
+return { concat, view, u16, u32, setU16, setU32, hex, equal, commandId, commandBytes };
+})();
+
+// ---- v500/device.js ----
+const __m4 = (() => {
+// Scanner controls outside a scan: front-panel buttons, aborting a scan,
+// sending the carriage home. From static analysis of Epson's plugin
+// (PROTOCOL.md, "Buttons, abort and home").
+
+const { hex } = __m5;
+const ACK = 0x06;
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The front-panel button pressed since the last query: 1-4, or 0 for none.
+// `1e 85`, no ACK, one byte. 1-4 are likely Start, Copy, E-mail, PDF.
+async function pressedButton(io) {
+  await io.write(new Uint8Array([0x1e, 0x85]));
+  const r = await io.read(1);
+  return r[0] >= 1 && r[0] <= 4 ? r[0] : 0;
+}
+
+async function status(io) {
+  await io.write(new Uint8Array([0x1b, 0x03]));
+  return io.read(2);
+}
+
+const busy = (s) => Boolean(s[0] & 0x40);
+
+// Wait until `1b 03` says neither busy (0x40) nor 0x02, like Epson's plugin.
+async function waitIdle(io, { timeoutMs = 30000, sleep = sleepMs } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const s = await status(io);
+    if (!(s[0] & 0x42)) return s;
+    if (Date.now() > deadline) throw new Error(`scanner stayed busy (status ${hex(s)})`);
+    await sleep(s[0] & 0x40 ? 200 : 50);
+  }
+}
+
+// Abort a scan in progress, as Epson's plugin does on cancel: `1e 18`,
+// wait a second, read one byte (not checked), then wait until idle. Any
+// image data still queued is read and dropped first.
+async function abortScan(io, { sleep = sleepMs } = {}) {
+  await io.write(new Uint8Array([0x1e, 0x18]));
+  await sleep(1000);
+  await io.read(1).catch(() => {});
+  return waitIdle(io, { sleep });
+}
+
+// Send the carriage home (`1e fa`), as the plugin does before a scan when
+// the carriage isn't at position 0.
+async function home(io, { sleep = sleepMs } = {}) {
+  await io.write(new Uint8Array([0x1e, 0xfa]));
+  const r = await io.read(1);
+  if (r[0] !== ACK) throw new Error(`home: scanner replied ${hex(r)}`);
+  return waitIdle(io, { sleep });
+}
+
+// Is the lamp on? `1e a1`, no ACK, one byte: 01 on, 00 off (checked on the
+// real scanner). The scanner switches it off by itself when idle.
+async function lampIsOn(io) {
+  await io.write(new Uint8Array([0x1e, 0xa1]));
+  const r = await io.read(1);
+  return Boolean(r[0] & 0x01);
+}
+
+// Switch the lamp on (`1e a2 01`), as every scan does first. There is no
+// warm-up to gain: a scan after the lamp was off 4 minutes is as fast.
+async function lampOn(io) {
+  for (const part of [[0x1e, 0xa2], [0x01]]) {
+    await io.write(new Uint8Array(part));
+    const r = await io.read(1);
+    if (r[0] !== ACK) throw new Error(`lamp: scanner replied ${hex(r)}`);
+  }
+}
+
+// Carriage position in motor steps: `1e 86`, no ACK, a u32 (0 at home, 51
+// after the 51-step calibration move). No answer while the carriage moves.
+async function position(io) {
+  await io.write(new Uint8Array([0x1e, 0x86]));
+  const r = await io.read(4);
+  return (r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24)) >>> 0;
+}
+
+// Get the scanner ready for a scan: let it finish driving home after the
+// last scan (2-5 s), abort a scan that never finished, and send the carriage
+// home if it isn't there. Throws "stuck" only if none of that works.
+async function ready(io, { log = () => {}, settleMs = 15000, sleep = sleepMs } = {}) {
+  let s = await status(io);
+  if (s[0] & 0x42) {
+    try {
+      s = await waitIdle(io, { timeoutMs: settleMs, sleep });
+    } catch {
+      log("scanner still busy: aborting the earlier scan");
+      try {
+        s = await abortScan(io, { sleep });
+      } catch (e) {
+        throw new Error(`The scanner is stuck from an earlier scan (${e.message}). Switch it off and on, then Connect and scan again.`);
+      }
+    }
+  }
+  if (s[0] & 0x10) { // firmware running: the position query exists
+    let at;
+    try {
+      at = await position(io);
+    } catch {
+      // idle by status but not answering: left mid-scan (checked: an abort frees it)
+      log("scanner not answering the position query: aborting the earlier scan");
+      try {
+        await abortScan(io, { sleep });
+        at = await position(io);
+      } catch (e) {
+        throw new Error(`The scanner is stuck from an earlier scan (${e.message}). Switch it off and on, then Connect and scan again.`);
+      }
+    }
+    if (at !== 0) {
+      log(`carriage at step ${at}, not home: sending it home`);
+      await home(io, { sleep });
+    }
+  }
+  return s;
+}
+
+return { pressedButton, status, busy, waitIdle, abortScan, home, lampIsOn, lampOn, position, ready };
+})();
+
+// ---- booth.js ----
+const __m2 = (() => {
+// Booth mode: the page as a party photo booth, with no server.
+//
+// Full screen, countdown with beeps, the scanner's own buttons / Space /
+// Enter / a foot pedal to scan, effects and a framed caption, a gallery
+// strip, a slideshow window for a second screen, printing, saving to a
+// folder, and a clear screen when the scanner needs a person.
+// An operator panel (press O, or tap the top-left corner three times) has
+// the counters and the clean-up buttons.
+
+const { compose, EFFECTS, applyEffect } = __m3;
+const { pressedButton, ready, status } = __m4;
+const $ = (id) => document.getElementById(id);
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const SETTINGS = "v500-booth-settings";
+const GALLERY_SIZE = 24;
+const STUCK_AFTER_MS = 20_000; // busy this long while idle: an earlier scan never finished
+
+// ctx: {state, performScan(canvas, onStatus), exclusive(fn), log(line), recalibrate()}
+function setupBooth(ctx) {
+  const { state, log } = ctx;
+  const el = {
+    root: $("booth"), canvas: $("booth-canvas"), photo: $("booth-photo"), count: $("booth-count"),
+    hint: $("booth-hint"), status: $("booth-status"), go: $("booth-go"), exit: $("booth-exit"),
+    strip: $("booth-strip"), attention: $("booth-attention"), attentionTitle: $("booth-attention-title"),
+    attentionText: $("booth-attention-text"), operator: $("booth-operator"), opStats: $("op-stats"),
+    corner: $("booth-corner"), printFrame: $("booth-print"),
+    // settings in the side panel
+    start: $("booth-start"), rotate: $("booth-rotate"), countdown: $("booth-countdown"), effect: $("booth-effect"),
+    frame: $("booth-frame"), caption: $("booth-caption"), date: $("booth-date"), print: $("booth-print-each"),
+    clean: $("booth-clean"), folder: $("booth-folder"), folderName: $("booth-folder-name"), slideshow: $("booth-slideshow"),
+  };
+  const booth = {
+    open: false, busy: false, dir: null, wakeLock: null, gallery: [], saved: [], slideshow: null,
+    scans: 0, failures: 0, lastError: "", sinceClean: 0, needsClean: false, attention: null,
+    busySince: 0,
+  };
+
+  // ---- settings, remembered in this browser ----
+
+  el.effect.replaceChildren(...Object.entries(EFFECTS).map(([k, v]) => new Option(v, k)));
+  const fields = ["rotate", "countdown", "effect", "caption", "clean"];
+  const checks = ["frame", "date", "print"];
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS) || "{}");
+    for (const f of fields) if (saved[f] != null) el[f].value = saved[f];
+    for (const f of checks) if (saved[f] != null) el[f].checked = saved[f];
+  } catch { /* storage blocked: defaults */ }
+  const remember = () => {
+    const s = {};
+    for (const f of fields) s[f] = el[f].value;
+    for (const f of checks) s[f] = el[f].checked;
+    try {
+      localStorage.setItem(SETTINGS, JSON.stringify(s));
+    } catch { /* storage blocked */ }
+  };
+  for (const f of [...fields, ...checks]) el[f].addEventListener("change", remember);
+
+  // ---- sound ----
+
+  let audio = null;
+  function beep(freq = 880, ms = 120, volume = 0.15) {
+    try {
+      audio ??= new AudioContext();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(volume, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + ms / 1000);
+      o.connect(g).connect(audio.destination);
+      o.start();
+      o.stop(audio.currentTime + ms / 1000);
+    } catch { /* no audio: silent */ }
+  }
+
+  // ---- keeping the computer awake ----
+
+  async function keepAwake() {
+    try {
+      if (booth.open && !booth.wakeLock && "wakeLock" in navigator) {
+        booth.wakeLock = await navigator.wakeLock.request("screen");
+        booth.wakeLock.addEventListener("release", () => (booth.wakeLock = null));
+      }
+    } catch (e) {
+      log(`couldn't keep the screen awake: ${e.message}`);
+    }
+  }
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && keepAwake());
+
+  // ---- the "needs a person" screen ----
+
+  const ATTENTION = {
+    disconnected: ["Scanner unplugged", "Plug the scanner's USB cable back in. The booth carries on by itself."],
+    stuck: ["Scanner needs a restart", "Switch the scanner off, wait 5 seconds, and switch it on again."],
+    clean: ["Time to wipe the glass", "Give the scanner glass a quick wipe, then press Scan to carry on."],
+  };
+  function attention(kind) {
+    booth.attention = kind;
+    el.attention.hidden = !kind;
+    if (kind) {
+      [el.attentionTitle.textContent, el.attentionText.textContent] = ATTENTION[kind];
+      log(`booth: ${ATTENTION[kind][0]}`);
+    }
+  }
+
+  // Called by the page when the scanner disappears or comes back.
+  ctx.onConnection = (connected) => {
+    if (!booth.open) return;
+    if (!connected) attention("disconnected");
+    else if (booth.attention === "disconnected" || booth.attention === "stuck") attention(null);
+  };
+
+  // ---- gallery and slideshow ----
+
+  function addToGallery(blob, name) {
+    const url = URL.createObjectURL(blob);
+    booth.gallery.unshift({ url, name });
+    for (const old of booth.gallery.splice(GALLERY_SIZE)) URL.revokeObjectURL(old.url);
+    el.strip.replaceChildren(...booth.gallery.map((p) => {
+      const img = new Image();
+      img.src = p.url;
+      img.alt = p.name;
+      img.addEventListener("click", () => showPhoto(p.url));
+      return img;
+    }));
+    updateSlideshow(url);
+  }
+
+  function showPhoto(url) {
+    el.canvas.hidden = true;
+    el.photo.hidden = false;
+    el.photo.src = url;
+    el.hint.hidden = true;
+  }
+
+  // A second window, for a TV: the newest photo, then the recent ones in turn.
+  function openSlideshow() {
+    const w = window.open("", "v500-slideshow", "popup,width=1280,height=720");
+    if (!w) {
+      log("the browser blocked the slideshow window; allow pop-ups for this page");
+      return;
+    }
+    w.document.title = "Scan booth";
+    w.document.body.style.cssText = "margin:0;background:#000;display:grid;place-items:center;height:100vh;overflow:hidden";
+    w.document.body.innerHTML = '<img id="s" style="max-width:100vw;max-height:100vh;transition:opacity .6s">';
+    booth.slideshow = { w, index: 0, hold: 0 };
+    w.document.body.addEventListener("click", () => w.document.documentElement.requestFullscreen?.().catch(() => {}));
+    updateSlideshow();
+  }
+
+  function updateSlideshow(newest) {
+    const s = booth.slideshow;
+    if (!s || s.w.closed) return;
+    const img = s.w.document.getElementById("s");
+    if (newest) {
+      img.src = newest;
+      s.index = 0;
+      s.hold = Date.now() + 15_000; // show a fresh photo a little longer
+    } else if (booth.gallery.length) {
+      img.src = booth.gallery[s.index % booth.gallery.length].url;
+    }
+  }
+  setInterval(() => {
+    const s = booth.slideshow;
+    if (!s || s.w.closed || !booth.gallery.length || Date.now() < s.hold) return;
+    s.index = (s.index + 1) % booth.gallery.length;
+    updateSlideshow();
+  }, 6000);
+
+  // ---- saving and printing ----
+
+  async function save(blob, name) {
+    if (!booth.dir) return;
+    try {
+      const file = await booth.dir.getFileHandle(name, { create: true });
+      const w = await file.createWritable();
+      await w.write(blob);
+      await w.close();
+      booth.saved.push(name);
+      log(`saved ${name}`);
+    } catch (e) {
+      log(`couldn't save ${name}: ${e.message}`);
+    }
+  }
+
+  // Print through a hidden frame. With Chrome's --kiosk-printing flag this
+  // goes straight to the default printer, with no dialog.
+  function print(url) {
+    const doc = el.printFrame.contentDocument;
+    doc.open();
+    doc.write(`<!doctype html><style>@page{margin:6mm}html,body{margin:0;height:100%}
+      img{display:block;max-width:100%;max-height:100%;margin:auto}</style><img src="${url}">`);
+    doc.close();
+    const img = doc.querySelector("img");
+    img.onload = () => el.printFrame.contentWindow.print();
+  }
+
+  el.folder.addEventListener("click", async () => {
+    if (!window.showDirectoryPicker) {
+      el.folderName.textContent = "this browser can't save to folders";
+      return;
+    }
+    try {
+      booth.dir = await window.showDirectoryPicker({ mode: "readwrite", id: "v500-booth" });
+      el.folderName.textContent = `saving to ${booth.dir.name}/`;
+    } catch { /* picker closed */ }
+  });
+  el.slideshow.addEventListener("click", openSlideshow);
+
+  // ---- a scan ----
+
+  async function scan() {
+    if (booth.busy || state.scanning || !booth.open) return;
+    if (booth.attention && booth.attention !== "clean") return;
+    if (booth.attention === "clean") {
+      attention(null);
+      booth.sinceClean = 0;
+      return; // the press that dismisses the reminder doesn't scan
+    }
+    if (!state.io) return attention("disconnected");
+    booth.busy = state.scanning = true;
+    el.go.disabled = true;
+    ctx.refresh();
+    try {
+      for (let n = Number(el.countdown.value); n > 0; n--) {
+        el.hint.hidden = true;
+        el.count.hidden = false;
+        el.count.textContent = n;
+        beep(660, 140);
+        await wait(1000);
+      }
+      el.count.hidden = true;
+      el.hint.hidden = true;
+      beep(990, 220);
+      const deg = Number(el.rotate.value);
+      el.photo.hidden = true;
+      el.canvas.hidden = false;
+      el.canvas.style.transform = deg ? `rotate(${deg}deg)` : "";
+      el.canvas.classList.toggle("turned", deg % 180 !== 0);
+      const r = await ctx.performScan(el.canvas, (text) => (el.status.textContent = text === "Scanning…" ? "Hold still…" : text));
+      booth.scans++;
+      booth.sinceClean++;
+      log(`booth scan ${booth.scans}: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s`);
+
+      // the finished photo: effect, turned upright, framed
+      const c2 = el.canvas.getContext("2d");
+      const img = c2.getImageData(0, 0, el.canvas.width, el.canvas.height);
+      applyEffect(img.data, el.effect.value);
+      c2.putImageData(img, 0, 0);
+      const date = el.date.checked ? new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : "";
+      const final = compose(el.canvas, {
+        deg, caption: el.frame.checked ? el.caption.value.trim() : "", date: el.frame.checked ? date : "",
+        framed: el.frame.checked, makeCanvas: (w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h }),
+      });
+      const blob = await new Promise((res) => final.toBlob(res, "image/jpeg", 0.92));
+      const name = `scan-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.jpg`;
+      addToGallery(blob, name);
+      showPhoto(booth.gallery[0].url);
+      el.status.textContent = "Done!";
+      beep(1320, 160);
+      await save(blob, name);
+      if (el.print.checked) print(booth.gallery[0].url);
+      const every = Number(el.clean.value);
+      if (every && booth.sinceClean >= every) {
+        await wait(4000); // let the guest see their photo first
+        attention("clean");
+      }
+    } catch (e) {
+      booth.failures++;
+      booth.lastError = e.message;
+      el.status.textContent = e.name === "AbortError" ? "Cancelled." : "That didn't work. Try again!";
+      log(`booth error: ${e.stack || e.message}`);
+      if (/stuck|stayed busy|didn't confirm the abort/.test(e.message)) attention("stuck");
+      else if (!state.io) attention("disconnected");
+    } finally {
+      booth.busy = state.scanning = false;
+      el.go.disabled = false;
+      ctx.refresh();
+      updateOperator();
+    }
+  }
+
+  // ---- watching the scanner while idle: buttons, stuck ----
+  // (The lamp is left to the scanner: a scan after it was off 4 minutes is
+  // as fast as one with it on, so there's nothing to gain keeping it lit.)
+
+  async function watch() {
+    while (booth.open) {
+      if (!booth.busy && state.io) {
+        try {
+          const now = Date.now();
+          const { button, busy } = await ctx.exclusive(async () => {
+            const s = await status(state.io);
+            const busy = Boolean(s[0] & 0x40);
+            return { button: busy ? 0 : await pressedButton(state.io), busy };
+          });
+          if (busy) {
+            booth.busySince ||= now;
+            if (now - booth.busySince > STUCK_AFTER_MS && booth.attention !== "stuck") {
+              // abort the scan that never finished; ask for a power cycle only if that fails
+              try {
+                await ctx.exclusive(() => ready(state.io, { log, settleMs: 0 }));
+                log("recovered the scanner from an unfinished scan");
+                booth.busySince = 0;
+              } catch (e) {
+                log(e.message);
+                attention("stuck");
+              }
+            }
+          } else {
+            booth.busySince = 0;
+            if (booth.attention === "stuck" || booth.attention === "disconnected") attention(null);
+          }
+          if (button) {
+            log(`scanner button ${button} pressed`);
+            scan();
+          }
+        } catch (e) {
+          log(`watching the scanner: ${e.message}`);
+          await wait(2000);
+        }
+      }
+      await wait(300);
+    }
+  }
+
+  // ---- operator panel ----
+
+  function updateOperator() {
+    if (el.operator.hidden) return;
+    el.opStats.textContent = [
+      `${plural(booth.scans, "photo")} this session, ${plural(booth.failures, "failed scan")}`,
+      booth.lastError ? `last error: ${booth.lastError}` : "no errors",
+      `${booth.saved.length} saved${booth.dir ? ` to ${booth.dir.name}/` : " (no folder chosen)"}`,
+      `glass wiped ${plural(booth.sinceClean, "photo")} ago`,
+    ].join("\n");
+  }
+  function toggleOperator() {
+    el.operator.hidden = !el.operator.hidden;
+    updateOperator();
+  }
+  let taps = [];
+  el.corner.addEventListener("click", () => {
+    taps = [...taps.filter((t) => Date.now() - t < 1500), Date.now()];
+    if (taps.length >= 3) {
+      taps = [];
+      toggleOperator();
+    }
+  });
+  $("op-close").addEventListener("click", toggleOperator);
+  $("op-recalibrate").addEventListener("click", () => {
+    ctx.recalibrate();
+    log("operator: the next scan measures the levels and calibration again");
+    $("op-recalibrate").textContent = "Next scan recalibrates";
+  });
+  $("op-cleaned").addEventListener("click", () => {
+    booth.sinceClean = 0;
+    if (booth.attention === "clean") attention(null);
+    updateOperator();
+  });
+  $("op-delete").addEventListener("click", async () => {
+    if (!confirm(`Delete all ${booth.gallery.length} photos from this session${booth.saved.length ? `, including ${booth.saved.length} saved files` : ""}?`)) return;
+    for (const name of booth.saved) {
+      try {
+        await booth.dir.removeEntry(name);
+      } catch (e) {
+        log(`couldn't delete ${name}: ${e.message}`);
+      }
+    }
+    booth.saved = [];
+    for (const p of booth.gallery) URL.revokeObjectURL(p.url);
+    booth.gallery = [];
+    el.strip.replaceChildren();
+    el.photo.hidden = true;
+    el.canvas.hidden = true;
+    el.hint.hidden = false;
+    updateOperator();
+  });
+  $("op-leave").addEventListener("click", () => {
+    el.operator.hidden = true;
+    leave();
+  });
+
+  // ---- entering and leaving ----
+
+  el.start.addEventListener("click", async () => {
+    booth.open = true;
+    el.root.hidden = false;
+    document.body.style.overflow = "hidden";
+    el.hint.hidden = false;
+    el.status.textContent = "";
+    attention(state.io ? null : "disconnected");
+    try {
+      await el.root.requestFullscreen();
+    } catch { /* fullscreen refused: the overlay still covers the window */ }
+    keepAwake();
+    watch();
+  });
+
+  function leave() {
+    if (booth.busy) return;
+    booth.open = false;
+    el.root.hidden = true;
+    document.body.style.overflow = "";
+    booth.wakeLock?.release().catch(() => {});
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+
+  el.go.addEventListener("click", scan);
+  el.exit.addEventListener("click", leave);
+  document.addEventListener("keydown", (e) => {
+    if (!booth.open) return;
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      scan();
+    } else if (e.key === "Escape") {
+      if (booth.busy) state.abort?.abort();
+      else if (!el.operator.hidden) toggleOperator();
+      else leave();
+    } else if (e.key === "o" || e.key === "O") {
+      toggleOperator();
+    }
+  });
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && booth.open && !booth.busy && el.operator.hidden) leave();
+  });
+
+  return { leave };
+}
+
+return { setupBooth };
+})();
+
+// ---- selfcopy.js ----
+const __m6 = (() => {
+// A copy of this page with the user's firmware built in, so it opens on any
+// computer with no file to pick. For the user's own computers: Epson's
+// licence forbids redistributing the firmware.
+
+// The marker is assembled at run time: this code is itself inside the page,
+// and a literal marker here would match its own source.
+const FIRMWARE_ID = ["v500", "firmware"].join("-");
+const OPEN = `<script id="${FIRMWARE_ID}" type="application/octet-stream">`;
+
+function base64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+// The esfw7C.bin layout parseFirmware() reads, from a parsed firmware.
+function firmwareFile(fw) {
+  const out = new Uint8Array(0x10100);
+  out.set([0x45, 0x44, 0x4c, 0x41]); // "EDLA"
+  out.set(fw.uploadHeader, 0x4c);
+  out.set(fw.body, 0x100);
+  return out;
+}
+
+// `html` with the firmware bytes in a data script before </body>, replacing
+// any already there.
+function withFirmware(html, bytes) {
+  const close = "<" + "/script>";
+  const at = html.lastIndexOf(OPEN); // a copy of a copy: replace the old one
+  if (at >= 0) {
+    const end = html.indexOf(close, at) + close.length;
+    html = html.slice(0, at) + html.slice(end).replace(/^\s*/, "");
+  }
+  const body = html.lastIndexOf("<" + "/body>");
+  const tag = `${OPEN}\n${base64(bytes)}\n${close}\n`;
+  return body < 0 ? html + tag : html.slice(0, body) + tag + html.slice(body);
+}
+
+// The firmware built into a page (its text content), or null.
+function decodeBuiltIn(text) {
+  if (!text) return null;
+  const bin = atob(text.trim());
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+return { FIRMWARE_ID, base64, firmwareFile, withFirmware, decodeBuiltIn };
+})();
+
+// ---- v500/firmware.js ----
+const __m7 = (() => {
+// Parse Epson's esfw7C.bin and upload it (see v500/firmware.py, PROTOCOL.md).
+// The V500 keeps no firmware in flash; the host uploads it on every power-on.
+// Users supply their own copy: Epson's licence forbids redistributing it.
+
+const { hex } = __m5;
+const ACK = 0x06;
+const STATUS = new Uint8Array([0x1b, 0x03]);
+const BEGIN_UPLOAD = new Uint8Array([0x1b, 0x06]);
+const RUN = new Uint8Array([0x1b, 0x16]);
+const RUN_PARAM = new Uint8Array([0x80]);
+const FIRMWARE_LOADED = 0x10; // bit in the first status byte
+
+function parseFirmware(buffer) {
+  const data = new Uint8Array(buffer);
+  if (String.fromCharCode(...data.subarray(0, 4)) !== "EDLA") throw new Error("not an Epson firmware file (expected esfw7C.bin)");
+  if (data.length < 0x10100) throw new Error(`file is ${data.length} bytes, expected at least ${0x10100}`);
+  const body = data.slice(0x100, 0x10100);
+  let sum = 0;
+  for (const b of body) sum = (sum + b) & 0xff;
+  const text = new TextDecoder("latin1").decode(body);
+  const m = text.match(/EPSON[ -~]{10,40}/);
+  return { uploadHeader: data.slice(0x4c, 0x50), body, checksum: sum, ident: m ? m[0].split(/\s+/).join(" ") : "unknown" };
+}
+
+async function status(io) {
+  await io.write(STATUS);
+  const reply = await io.read(2);
+  if (reply.length < 2) throw new Error(`short status reply: ${hex(reply) || "nothing"}`);
+  return reply.subarray(0, 2);
+}
+
+const isLoaded = (reply) => Boolean(reply[0] & FIRMWARE_LOADED);
+
+async function expectAck(io) {
+  const reply = await io.read(1);
+  if (!reply.length || reply[0] !== ACK) throw new Error(`expected ACK, scanner replied ${hex(reply) || "nothing"}`);
+}
+
+// Upload unless the scanner already runs firmware. Returns true if it uploaded.
+async function upload(fw, io) {
+  if (isLoaded(await status(io))) return false;
+  await io.write(BEGIN_UPLOAD);
+  await expectAck(io);
+  await io.write(fw.uploadHeader);
+  await io.write(fw.body);
+  await io.write(new Uint8Array([fw.checksum]));
+  await expectAck(io);
+  await io.write(RUN);
+  await expectAck(io);
+  await io.write(RUN_PARAM);
+  await expectAck(io);
+  if (!isLoaded(await status(io))) throw new Error("upload ACKed but the firmware isn't running");
+  return true;
+}
+
+return { FIRMWARE_LOADED, parseFirmware, status, isLoaded, upload };
+})();
+
+// ---- v500/raw.js ----
+const __m9 = (() => {
+// Turn the V500's raw image data into RGB (see v500/raw.py and PROTOCOL.md).
+//
+// Data comes in blocks, each followed by an 8-byte trailer holding its length.
+// The rest is lines of 8-bit interleaved RGB (grey scans too). Red lags green
+// by k lines and green lags blue by k, k = 5 x dpi / 200. Crop the leftmost
+// `width` pixels, then apply Epson's colour matrix, or the grey weights.
+
+const { concat } = __m5;
+const TRAILER = 8; // 02 <u24 LE block length> 00 00 80 00
+
+// From Epson's libsane-epkowa; out = M @ (r, g, b), truncated to 0..255.
+const COLOR_MATRIX = [
+  [1.247, -0.2041, -0.0429],
+  [-0.192, 1.2918, -0.0998],
+  [-0.01, -0.2503, 1.2603],
+];
+const GREY_WEIGHTS = [0.195, 0.61, 0.195];
+
+function lineShift(dpi) {
+  const k = Math.floor((5 * dpi) / 200);
+  return [2 * k, k, 0];
+}
+
+// Split the reads after one `1e 47` into data blocks, walking trailers from the end.
+function blocks(reads) {
+  const data = concat(reads);
+  const out = [];
+  let end = data.length;
+  while (end > 0) {
+    const t = data.subarray(end - TRAILER, end);
+    if (t.length < TRAILER || t[0] !== 0x02) throw new Error(`no block trailer before byte ${end}`);
+    const length = t[1] | (t[2] << 8) | (t[3] << 16);
+    const start = end - TRAILER - length;
+    if (start < 0) throw new Error(`trailer claims ${length} bytes, only ${end - TRAILER} left`);
+    out.push(data.subarray(start, end - TRAILER));
+    end = start;
+  }
+  return out.reverse();
+}
+
+function payload(reads) {
+  return concat(blocks(reads));
+}
+
+// The same in exact integers (x 10,000 and x 1,000), as raw.py does, so values
+// that land exactly on an integer truncate the same everywhere.
+const M = COLOR_MATRIX.map((row) => row.map((v) => Math.round(v * 10000)));
+const G = GREY_WEIGHTS.map((v) => Math.round(v * 1000));
+
+// One output pixel from the raw samples r, g, b.
+function convert(r, g, b, grey, out, o) {
+  if (grey) {
+    const v = Math.floor((r * G[0] + g * G[1] + b * G[2]) / 1000);
+    out[o] = v < 0 ? 0 : v > 255 ? 255 : v;
+    return;
+  }
+  for (let c = 0; c < 3; c++) {
+    const m = M[c];
+    const v = Math.floor((r * m[0] + g * m[1] + b * m[2]) / 10000);
+    out[o + c] = v < 0 ? 0 : v > 255 ? 255 : v;
+  }
+}
+
+// Decodes rows as raw lines arrive, so a page can paint the scan as it happens.
+// push(bytes) takes raw line data (trailers removed) and returns
+// {top, rows, data}: the newly finished rows, `channels` bytes per pixel.
+class StreamDecoder {
+  constructor({ rawWidth, width, height, dpi, grey = false, cropX = 0 }) {
+    this.rawWidth = rawWidth;
+    this.width = width;
+    this.height = height;
+    this.grey = grey;
+    this.cropX = cropX;
+    this.channels = grey ? 1 : 3;
+    this.shift = lineShift(dpi);
+    this.lineBytes = rawWidth * 3;
+    this.lines = height + Math.max(...this.shift);
+    this.buffer = new Uint8Array(this.lines * this.lineBytes);
+    this.filled = 0; // bytes received
+    this.done = 0; // output rows produced
+  }
+
+  push(bytes) {
+    if (this.filled + bytes.length > this.buffer.length) throw new Error("more image data than expected");
+    this.buffer.set(bytes, this.filled);
+    this.filled += bytes.length;
+    const complete = Math.floor(this.filled / this.lineBytes);
+    // row y needs raw lines y + shift[c] for each colour
+    const ready = Math.min(this.height, complete - Math.max(...this.shift));
+    const top = this.done;
+    if (ready <= top) return { top, rows: 0, data: new Uint8Array(0) };
+    const rows = ready - top;
+    const out = new Uint8Array(rows * this.width * this.channels);
+    const [sr, sg, sb] = this.shift;
+    const lb = this.lineBytes;
+    const buf = this.buffer;
+    for (let y = 0; y < rows; y++) {
+      const ry = (top + y + sr) * lb, gy = (top + y + sg) * lb, by = (top + y + sb) * lb;
+      for (let x = 0; x < this.width; x++) {
+        const px = (this.cropX + x) * 3;
+        convert(buf[ry + px], buf[gy + px + 1], buf[by + px + 2], this.grey, out, (y * this.width + x) * this.channels);
+      }
+    }
+    this.done = ready;
+    return { top, rows, data: out };
+  }
+
+  get complete() {
+    return this.done === this.height;
+  }
+}
+
+// Whole-image decode: raw payload -> {width, height, channels, data}.
+function decode(data, width, height, { dpi = 200, grey = false, cropX = 0 } = {}) {
+  const lines = height + Math.max(...lineShift(dpi));
+  if (data.length % (lines * 3)) throw new Error(`${data.length} bytes don't split into ${lines} RGB lines`);
+  const rawWidth = data.length / (lines * 3);
+  if (rawWidth < cropX + width) throw new Error(`raw lines are ${rawWidth} px, narrower than ${cropX + width}`);
+  const dec = new StreamDecoder({ rawWidth, width, height, dpi, grey, cropX });
+  const { data: out } = dec.push(data);
+  return { width, height, channels: dec.channels, data: out };
+}
+
+return { TRAILER, COLOR_MATRIX, GREY_WEIGHTS, lineShift, blocks, payload, StreamDecoder, decode };
+})();
+
+// ---- v500/calibration.js ----
+const __m11 = (() => {
+// Calibration values for a scan, from the scanner's reference reads
+// (see v500/calibration.py and PROTOCOL.md, "Calibration").
+//
+// White (32 lines) and dark (16 lines, lamp off) are read as 16-bit RGB across
+// the sensor window. From them: a packed shading table (`1e 84` type 06), the
+// per-colour minimums (`1e 42`) and bytes 11 and 15 of the image pass's `1e 41`,
+// which tell the scanner how the table is packed. Method from Epson's plugin.
+
+const DARK_SMOOTHING = 51; // moving-average width that best matches Epson's dark line (fitted)
+
+// A 16-bit read as a Uint16Array, copying so alignment is right.
+function u16Samples(bytes) {
+  const copy = bytes.slice();
+  return new Uint16Array(copy.buffer, 0, copy.length >> 1);
+}
+
+// Mean per colour of the dark probe (16 px x 4 lines), rounded.
+function probeOffsets(probe) {
+  const sums = [0, 0, 0];
+  for (let i = 0; i < probe.length; i++) sums[i % 3] += probe[i];
+  const n = probe.length / 3;
+  return sums.map((s) => roundHalfEven(s / n));
+}
+
+function roundHalfEven(x) {
+  const f = Math.floor(x);
+  const d = x - f;
+  if (d > 0.5) return f + 1;
+  if (d < 0.5) return f;
+  return f % 2 === 0 ? f : f + 1;
+}
+
+// The `1e 42` block: 3 white values, then each dark value twice.
+function param1e42(white, dark) {
+  const out = new Uint8Array(18);
+  const dv = new DataView(out.buffer);
+  const values = [white[0], white[1], white[2], dark[0], dark[0], dark[1], dark[1], dark[2], dark[2]];
+  values.forEach((v, i) => dv.setUint16(i * 2, v, true));
+  return out;
+}
+
+// Centred moving average along the line, narrower at the ends (one colour).
+function smooth(line, width) {
+  const n = line.length;
+  const r = Math.floor(width / 2);
+  const sums = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) sums[i + 1] = sums[i] + line[i];
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const lo = Math.max(0, i - r), hi = Math.min(n, i + r + 1);
+    out[i] = (sums[hi] - sums[lo]) / (hi - lo);
+  }
+  return out;
+}
+
+// white: Uint16Array of 32 lines x window x 3; dark: 16 lines x window x 3.
+// used: Uint8Array(window), 1 for the sensor pixels the scan needs.
+function compute(white, dark, window, used) {
+  const W = window;
+  const idx = [];
+  for (let x = 0; x < W; x++) if (used[x]) idx.push(x);
+  const n = idx.length;
+  const w = [new Float64Array(n), new Float64Array(n), new Float64Array(n)];
+  const d = [new Float64Array(n), new Float64Array(n), new Float64Array(n)];
+
+  for (let c = 0; c < 3; c++) {
+    // white: 4 groups of 8 lines averaged, then the brightest of the 4
+    idx.forEach((x, j) => {
+      let best = -Infinity;
+      for (let g = 0; g < 4; g++) {
+        let s = 0;
+        for (let l = 0; l < 8; l++) s += white[((g * 8 + l) * W + x) * 3 + c];
+        best = Math.max(best, s / 8);
+      }
+      w[c][j] = Math.floor(best);
+    });
+    // dark: 16 lines averaged, smoothed across the whole window
+    const darkLine = new Float64Array(W);
+    const lines = dark.length / (W * 3);
+    for (let x = 0; x < W; x++) {
+      let s = 0;
+      for (let l = 0; l < lines; l++) s += dark[(l * W + x) * 3 + c];
+      darkLine[x] = s / lines;
+    }
+    const sm = smooth(darkLine, DARK_SMOOTHING);
+    idx.forEach((x, j) => (d[c][j] = Math.floor(sm[x])));
+  }
+
+  const minOf = (a) => a.reduce((m, v) => Math.min(m, v), Infinity);
+  const rangeOf = (arrs, mins) => Math.max(...arrs.map((a, c) => a.reduce((m, v) => Math.max(m, v - mins[c]), 0)));
+  const whiteMin = w.map(minOf);
+  const darkMin = d.map(minOf);
+
+  const darkRange = rangeOf(d, darkMin);
+  let k = 0, dshift = 0;
+  const steps = [[3, 0x1f], [2, 0x3f], [1, 0x7f], [0, 0xff]];
+  const found = steps.find(([, limit]) => darkRange <= limit);
+  if (found) k = found[0];
+  else while (darkRange >= 0x100 * 2 ** dshift) dshift++;
+  const whiteRange = rangeOf(w, whiteMin);
+  let h = 0;
+  while (whiteRange >= 2 ** (k + 8) * 2 ** h && h < 8) h++;
+
+  const table = new Uint16Array(W * 3);
+  idx.forEach((x, j) => {
+    for (let c = 0; c < 3; c++) {
+      const v = (((w[c][j] - whiteMin[c]) >> h) << (8 - k)) | ((d[c][j] - darkMin[c]) >> dshift);
+      table[x * 3 + c] = Math.min(65535, Math.max(0, v));
+    }
+  });
+  return {
+    whiteMin,
+    darkMin,
+    table,
+    k,
+    h,
+    d: dshift,
+    param1e42: () => param1e42(whiteMin, darkMin),
+    tableBytes: () => new Uint8Array(table.buffer.slice(0)),
+    windowBytes: () => [0x80 | k, (h << 4) | dshift],
+  };
+}
+
+return { DARK_SMOOTHING, u16Samples, probeOffsets, param1e42, compute };
+})();
+
+// ---- v500/usblog.js ----
+const __m12 = (() => {
+// Read the transfer logs that tools/capture/usblog.c writes (see v500/usblog.py).
+//
+// File: "V5USBLOG", then records of
+//   double t; u8 endpoint; u8 kind; i32 rc; u32 requested; u32 actual;
+//   u8 data[IN ? actual : requested]
+
+const MAGIC = "V5USBLOG";
+const RECORD = 22;
+
+function parseUsblog(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const magic = String.fromCharCode(...bytes.subarray(0, 8));
+  if (magic !== MAGIC) throw new Error("not a usblog file (expected a capture from tools/capture)");
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const records = [];
+  let pos = 8;
+  while (pos + RECORD <= bytes.length) {
+    const time = dv.getFloat64(pos, true);
+    const endpoint = dv.getUint8(pos + 8);
+    const rc = dv.getInt32(pos + 10, true);
+    const requested = dv.getUint32(pos + 14, true);
+    const actual = dv.getUint32(pos + 18, true);
+    pos += RECORD;
+    const size = endpoint & 0x80 ? actual : requested;
+    records.push({ time, endpoint, rc, requested, out: !(endpoint & 0x80), data: bytes.slice(pos, pos + size) });
+    pos += size;
+  }
+  return records;
+}
+
+return { parseUsblog };
+})();
+
+// ---- v500/replay.js ----
+const __m10 = (() => {
+// Scan without Epson's plugin, by replaying a template (see v500/replay.py).
+//
+// A template is a capture of Epson's driver making one scan. We send the same
+// commands in the same order, with the calibration computed live: the analog
+// levels (`1e 31` <- `1e 92`), the probe offsets (second `1e 42`), the white
+// and dark minimums (last `1e 42`), the shading table (`1e 84` type 06) and
+// how it is packed (image-pass `1e 41` bytes 11 and 15). Status polls are
+// polled properly instead of replayed.
+
+const { commandBytes, commandId, concat, hex, u16, u32 } = __m5;
+const calibration = __m11;
+const { abortScan } = __m4;
+const { lineShift, payload, StreamDecoder, TRAILER } = __m9;
+const { parseUsblog } = __m12;
+const POLL_READY = 0x1e04;
+const STATUS = 0x1b03;
+const BUSY = 0x40;
+const TABLE_MAX = 255 * 256; // bytes per 1e 84 upload: whole 256-byte units, and whole pixels (6 bytes)
+const isType07 = (g) => g.command === 0x1e84 && g.steps[1]?.out && g.steps[1].data[0] === 0x07;
+
+const CMD = { MOVE: 0x1e01, AFE: 0x1e31, LEVELS: 0x1e42, WINDOW: 0x1e41, READ: 0x1e47, PARAMS: 0x1e57, AFE_READ: 0x1e92, TABLE: 0x1e84 };
+const ACK = 0x06;
+
+function isCommand(rec) {
+  return rec.out && rec.data.length === 2 && (rec.data[0] === 0x1b || rec.data[0] === 0x1e);
+}
+
+// Commands with everything sent or read until the next command.
+function group(records) {
+  const groups = [];
+  for (const rec of records) {
+    if (isCommand(rec)) groups.push({ command: commandId(rec.data), steps: [] });
+    else if (groups.length) groups[groups.length - 1].steps.push({ out: rec.out, requested: rec.requested, data: rec.data });
+  }
+  return groups;
+}
+
+const params = (g) => g.steps.filter((s) => s.out).map((s) => s.data);
+const replies = (g) => g.steps.filter((s) => !s.out).map((s) => s.data);
+const dataReads = (g) => replies(g).filter((r) => !(r.length === 1 && r[0] === ACK));
+
+class Template {
+  constructor(fields) {
+    Object.assign(this, { cropX: 0 }, fields);
+  }
+
+  static fromUsblog(buffer, name = "template") {
+    const groups = group(parseUsblog(buffer));
+    const p57 = groups.find((g) => g.command === CMD.PARAMS);
+    if (!p57) throw new Error(`${name}: no scan parameters (1e 57); is this a scan capture?`);
+    const p = params(p57)[0];
+    const [xres, yres, , , width, height, mode] = [0, 4, 8, 12, 16, 20, 24].map((o) => u32(p, o));
+    const windows = [];
+    let window = null, table = null;
+    for (const g of groups) {
+      if (g.command === CMD.WINDOW) window = u16(params(g)[0], 2) - u16(params(g)[0], 0);
+      if (g.command === CMD.READ) windows.push(window);
+      if (g.command === CMD.TABLE && params(g)[0][0] === 6) table = params(g)[1];
+    }
+    const reads = groups.filter((g) => g.command === CMD.READ).length;
+    if (reads !== 4 || !table) throw new Error(`${name}: expected 4 data reads and a shading table, found ${reads}`);
+    // pixels Epson's shading table filled
+    const t16 = calibration.u16Samples(table);
+    const used = new Uint8Array(t16.length / 3);
+    for (let x = 0; x < used.length; x++) used[x] = Math.min(t16[x * 3], t16[x * 3 + 1], t16[x * 3 + 2]) > 0 ? 1 : 0;
+    return new Template({ name, groups, xres, yres, width, height, mode, grey: mode === 0x800, deep: Boolean(mode & 0x1000), windows, used });
+  }
+
+  // Raw line width of the image pass, from the recorded data.
+  rawWidth() {
+    const reads = this.groups.filter((g) => g.command === CMD.READ);
+    const lines = this.height + Math.max(...lineShift(this.yres));
+    return payload(dataReads(reads[reads.length - 1])).length / (lines * 3);
+  }
+}
+
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+
+class Replayer {
+  // io: {write(Uint8Array), read(size) -> Uint8Array}, both async.
+  // onRows({top, rows, data, width, channels}) is called as image rows decode.
+  // levels: the analog levels a previous scan measured (its `afe`). With the
+  // lamp warm, reusing them skips the scanner's 2.3 s self-measurement; the
+  // white and dark references are still read fresh, so the image stays
+  // calibrated.
+  // calibration: {key, cal} from a previous scan of the same window and line
+  // period (its `calibration` property). Reusing it skips the dark probe, the
+  // white and dark reference reads and the lamp off/on: about 1 s.
+  constructor(template, io, { sleep = sleepMs, log = () => {}, onRows = () => {}, onProgress = () => {},
+    pollTimeoutMs = 60000, pollIntervalMs = 20, levels = null, signal = null, calibration: reuse = null } = {}) {
+    this.t = template;
+    this.io = io;
+    this.sleep = sleep;
+    this.log = log;
+    this.onRows = onRows;
+    this.onProgress = onProgress;
+    this.pollTimeoutMs = pollTimeoutMs;
+    this.pollIntervalMs = pollIntervalMs;
+    this.reuseLevels = Boolean(levels);
+    this.signal = signal; // an AbortSignal: stops the scan and aborts it on the scanner
+    this.sentAny = false; // a command went out: stopping now needs an abort
+    this.reads = [];
+    this.afe = levels;
+    this.probeOff = null;
+    this.cal = null;
+    // each group's occurrence among groups of its command, and each read's
+    // number, fixed up front so skipping groups doesn't shift them
+    const seen = new Map();
+    this.occurrence = template.groups.map((g) => {
+      const n = seen.get(g.command) ?? 0;
+      seen.set(g.command, n + 1);
+      return n;
+    });
+    this.imageWindow = (seen.get(CMD.WINDOW) ?? 0) - 1;
+    this.totalReads = seen.get(CMD.READ) ?? 0;
+    this.moves = seen.get(CMD.MOVE) ?? 0;
+    this.key = this.calibrationKey();
+    this.reuseCal = reuse && reuse.key === this.key ? reuse.cal : null;
+    if (this.reuseCal) this.cal = this.reuseCal;
+  }
+
+  // What a calibration depends on: the sensor window, line period and the
+  // pixels used. Scans that share it can share a calibration.
+  calibrationKey() {
+    const g = this.t.groups;
+    const white = g.filter((x) => x.command === CMD.WINDOW)[1];
+    const timing = g.find((x) => x.command === 0x1e21);
+    const used = this.t.used.reduce((a, b) => a + b, 0);
+    return [white && hex(params(white)[0].subarray(0, 4)), timing && hex(params(timing)[0].subarray(0, 2)), used].join("|");
+  }
+
+  // The calibration this scan used, for the next scan to reuse.
+  get calibration() {
+    return this.cal ? { key: this.key, cal: this.cal } : null;
+  }
+
+  // Groups to skip when the calibration is reused: from the dark probe's
+  // window to the lamp coming back on after the dark reference.
+  calibrationSpan() {
+    const g = this.t.groups;
+    const start = g.findIndex((x) => x.command === CMD.WINDOW);
+    let darkRead = -1;
+    g.forEach((x, i) => { if (x.command === CMD.READ && this.occurrence[i] === this.totalReads - 2) darkRead = i; });
+    const lampOn = g.findIndex((x, i) => i > darkRead && x.command === 0x1ea2);
+    return start >= 0 && darkRead >= 0 && lampOn >= 0 ? [start, lampOn] : null;
+  }
+
+  // Runs the scan. If it's stopped (signal) or fails, the scanner is told
+  // to abort (`1e 18`), so it ends up idle instead of stuck.
+  async run() {
+    try {
+      return await this.steps();
+    } catch (e) {
+      if (this.sentAny) {
+        this.log(`stopping the scanner after: ${e.message}`);
+        try {
+          await abortScan(this.io, { sleep: this.sleep });
+          this.log("scanner aborted and idle");
+        } catch (e2) {
+          this.log(`abort failed too: ${e2.message}`);
+          e.message += " (and the scanner didn't confirm the abort: if it stays busy, switch it off and on)";
+        }
+      }
+      throw e;
+    }
+  }
+
+  checkStop() {
+    if (this.signal?.aborted) throw Object.assign(new Error("scan cancelled"), { name: "AbortError" });
+  }
+
+  async steps() {
+    const groups = this.t.groups;
+    // the level measurement: from the first 1e 46 to the last 1e 92
+    const measure = [groups.findIndex((g) => g.command === 0x1e46), groups.findLastIndex((g) => g.command === CMD.AFE_READ)];
+    const calSpan = this.reuseCal ? this.calibrationSpan() : null;
+    if (this.reuseCal && !calSpan) throw new Error("template has no calibration to skip");
+    // skipping the white reference also skips its move: the move to the area goes that much further
+    this.extraSteps = 0;
+    if (calSpan) {
+      const whiteMove = groups.findIndex((g, i) => g.command === CMD.MOVE && i > calSpan[0] && i < calSpan[1]);
+      if (whiteMove >= 0) this.extraSteps = u32(params(groups[whiteMove])[0], 0);
+      this.log("reusing the calibration from an earlier scan");
+    }
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
+      // the constant type 07 table costs ~190 ms (the scanner works before it
+      // ACKs) and survives between scans, even the 1b 40 resets: send it with
+      // the level measurement only (checked: same image, 0.2 s faster)
+      if (this.reuseLevels && isType07(g)) continue;
+      if (calSpan && i >= calSpan[0] && i <= calSpan[1]) continue;
+      this.checkStop();
+      if (g.command === POLL_READY || g.command === STATUS) {
+        while (i + 1 < groups.length && groups[i + 1].command === g.command) i++;
+        if (g.command === POLL_READY) await this.pollReady();
+        else await this.waitNotBusy();
+      } else {
+        await this.replay(g, i);
+      }
+      this.onProgress(i + 1, groups.length);
+    }
+    return this.image;
+  }
+
+  async replay(g, i) {
+    const n = this.occurrence[i];
+    const isImage = g.command === CMD.READ && n === this.totalReads - 1;
+    if (isImage) this.startImage();
+    // Epson aborts only once the image read has started, but a scan that
+    // fails before it (checked: a read timing out during setup) leaves the
+    // scanner reporting idle while it ignores motor commands (1e 86, 1e fa)
+    // until a 1e 18. An abort on an idle scanner is harmless (checked).
+    this.sentAny = true;
+    const sent = this.substitute(g, n);
+    if (g.command === CMD.TABLE && sent[1]?.length > TABLE_MAX) return this.splitTable(sent);
+    await this.io.write(commandBytes(g.command));
+    let p = 0;
+    const got = [];
+    for (const step of g.steps) {
+      if (step.out) {
+        await this.io.write(sent[p++]);
+        continue;
+      }
+      if (isImage) this.checkStop();
+      const reply = await this.io.read(step.requested);
+      if (reply.length !== step.requested) throw new Error(`${hex(commandBytes(g.command))}: read ${reply.length} of ${step.requested} bytes`);
+      if (step.data.length === 1 && step.data[0] === ACK && !(reply.length === 1 && reply[0] === ACK)) {
+        throw new Error(`${hex(commandBytes(g.command))}: scanner replied ${hex(reply)}, expected ACK`);
+      }
+      got.push(reply);
+      if (isImage) this.imageBlock(reply);
+    }
+    this.after(g, n, got);
+  }
+
+  // One 1e 84 upload must stay under 64 KiB (checked at 1600 dpi: a 65,472
+  // byte shading table works, 65,664 times out). Send a bigger table as
+  // consecutive pieces: header bytes 2-3 are the address in 256-byte units.
+  async splitTable([header, data]) {
+    const base = header[2] | (header[3] << 8);
+    for (let off = 0; off < data.length; off += TABLE_MAX) {
+      const piece = data.subarray(off, off + TABLE_MAX);
+      const h = header.slice();
+      const addr = base + off / 256;
+      h[2] = addr & 0xff;
+      h[3] = addr >> 8;
+      h[5] = piece.length & 0xff;
+      h[6] = (piece.length >> 8) & 0xff;
+      h[7] = piece.length >> 16;
+      await this.io.write(commandBytes(CMD.TABLE));
+      await this.expectAck(CMD.TABLE);
+      await this.io.write(h);
+      await this.io.write(piece);
+      await this.expectAck(CMD.TABLE);
+    }
+  }
+
+  async expectAck(cmd) {
+    const r = await this.io.read(1);
+    if (!(r.length === 1 && r[0] === ACK)) throw new Error(`${hex(commandBytes(cmd))}: scanner replied ${hex(r)}, expected ACK`);
+  }
+
+  substitute(g, n) {
+    const ps = params(g).map((x) => x.slice());
+    if (g.command === CMD.AFE && n > 0) ps[0] = this.need(this.afe, "1e 92 reply");
+    else if (g.command === CMD.LEVELS && n === 1) {
+      const o = this.need(this.probeOff, "probe read");
+      ps[0] = calibration.param1e42([0, 0, 0], o);
+    } else if (g.command === CMD.LEVELS && n === 3) ps[0] = this.calibrate().param1e42();
+    else if (g.command === CMD.MOVE && n === this.moves - 2 && this.extraSteps) {
+      ps[0] = ps[0].slice(); // the move to the area, from home instead of the white reference
+      new DataView(ps[0].buffer).setUint32(0, u32(ps[0], 0) + this.extraSteps, true);
+    }
+    else if (g.command === CMD.TABLE && ps.length && ps[0][0] === 6) ps[1] = this.calibrate().tableBytes();
+    else if (g.command === CMD.WINDOW && n === this.imageWindow) {
+      const [b11, b15] = this.calibrate().windowBytes();
+      ps[0][11] = b11;
+      ps[0][15] = b15;
+    }
+    return ps;
+  }
+
+  after(g, n, got) {
+    if (g.command === CMD.AFE_READ) this.afe = got[0];
+    else if (g.command === CMD.READ) {
+      const data = got.filter((r) => !(r.length === 1 && r[0] === ACK));
+      const k = n;
+      this.reads[k] = data;
+      this.log(`read ${k}: ${data.reduce((s, r) => s + r.length, 0)} bytes`);
+      if (k === 0) this.probeOff = calibration.probeOffsets(calibration.u16Samples(payload(data)));
+    }
+  }
+
+  // The image arrives one block per read; decode rows as soon as they're complete.
+  startImage() {
+    const t = this.t;
+    const rawWidth = t.imageRawWidth ?? t.rawWidth(); // set by retarget(); else from the recording
+    this.decoder = new StreamDecoder({ rawWidth, width: t.width, height: t.height, dpi: t.yres, grey: t.grey, cropX: t.cropX });
+    this.image = { width: t.width, height: t.height, channels: this.decoder.channels, data: new Uint8Array(t.width * t.height * this.decoder.channels) };
+    this.pendingImage = [];
+  }
+
+  imageBlock(reply) {
+    // Each image read is one block plus its trailer; tolerate split blocks by
+    // buffering until a trailer's length lines up.
+    this.pendingImage.push(reply);
+    const joined = this.pendingImage.length === 1 ? reply : concat(this.pendingImage);
+    const t = joined.subarray(joined.length - TRAILER);
+    const length = t[1] | (t[2] << 8) | (t[3] << 16);
+    if (t[0] !== 0x02 || length !== joined.length - TRAILER) return;
+    this.pendingImage = [];
+    const { top, rows, data } = this.decoder.push(joined.subarray(0, length));
+    if (!rows) return;
+    const ch = this.decoder.channels;
+    this.image.data.set(data, top * this.t.width * ch);
+    this.onRows({ top, rows, data, width: this.t.width, channels: ch });
+  }
+
+  calibrate() {
+    if (!this.cal) {
+      if (this.reads.length < 3) throw new Error("calibration needed before the reference reads");
+      const w = this.t.windows;
+      const white = calibration.u16Samples(payload(this.reads[1]));
+      const dark = calibration.u16Samples(payload(this.reads[2]));
+      if (w[1] !== w[2]) throw new Error("white and dark reads have different windows");
+      this.cal = calibration.compute(white, dark, w[1], this.t.used);
+      const c = this.cal;
+      this.log(`calibration: white ${c.whiteMin} dark ${c.darkMin} k ${c.k} h ${c.h} d ${c.d}`);
+    }
+    return this.cal;
+  }
+
+  async pollReady() {
+    const deadline = Date.now() + this.pollTimeoutMs;
+    for (;;) {
+      await this.io.write(commandBytes(POLL_READY));
+      const r = await this.io.read(1);
+      if (r[0] === 0x01) return;
+      if (Date.now() > deadline) throw new Error("scanner never reported ready (1e 04)");
+      await this.sleep(this.pollIntervalMs);
+    }
+  }
+
+  async waitNotBusy() {
+    const deadline = Date.now() + this.pollTimeoutMs;
+    for (;;) {
+      await this.io.write(commandBytes(STATUS));
+      const r = await this.io.read(2);
+      if (!(r[0] & BUSY)) return;
+      if (Date.now() > deadline) throw new Error(`scanner stayed busy (status ${hex(r)})`);
+      await this.sleep(this.pollIntervalMs);
+    }
+  }
+
+  need(value, what) {
+    if (value == null) throw new Error(`template order unexpected: no ${what} yet`);
+    return value;
+  }
+}
+
+return { POLL_READY, STATUS, BUSY, CMD, group, params, replies, Template, Replayer };
+})();
+
+// ---- v500/geometry.js ----
+const __m8 = (() => {
+// Retarget a template to any scan area at its resolution (see v500/geometry.py
+// and PROTOCOL.md, "Scan geometry").
+
+const { setU16, setU32, u16, u32 } = __m5;
+const { lineShift } = __m9;
+const { CMD, params, Template } = __m10;
+const STEPS_PER_INCH = 2400;
+
+// Motor steps for `lines` scan lines. At 1600 dpi a line is 1.5 steps.
+function scanSteps(lines, dpi) {
+  return Math.ceil((lines * STEPS_PER_INCH) / dpi);
+}
+const BLOCK_BYTES = 51200; // Epson reads in chunks of this size; image blocks fit in it
+const RAW_QUANTUM = 384; // raw line widths when the sensor runs faster than the scan
+const LINE_QUANTUM = 32; // otherwise: every width Epson sent at 800 dpi is a multiple of 32; 1,889 px hung the scanner
+const USED_MARGIN = 3; // extra sensor pixels Epson's shading table covers
+const BED_IN = 8.48; // the scanner's maximum width
+const BED_MM = 297.18; // and the driver's maximum height
+const SENSOR_SPAN_IN = 9.6; // widest window Epson used: 5,120 units at 200 dpi
+
+// A scan area in pixels at the scan resolution.
+function region(x, y, width, height) {
+  return { x, y, width, height };
+}
+
+// mm -> px through SANE's fixed point (1/65536 mm), as Epson's driver gets
+// them. Epson rounds the offsets, truncates the height and the width to a
+// multiple of 8 (60 mm at 800 dpi: 1,888 px, not 1,889).
+function fromMm(dpi, left, top, width, height) {
+  const exact = (v) => (Math.floor(v * 65536) / 65536 / 25.4) * dpi;
+  return region(Math.floor(exact(left) + 0.5), Math.floor(exact(top) + 0.5),
+    Math.floor(Math.floor(exact(width)) / 8) * 8, Math.floor(exact(height)));
+}
+
+function fullBed(dpi) {
+  return region(0, 0, Math.floor(BED_IN * dpi + 1e-6), fromMm(dpi, 0, 0, 0, BED_MM).height);
+}
+
+const firstIndex = (groups, cmd) => groups.findIndex((g) => g.command === cmd);
+const lastIndex = (groups, cmd) => groups.findLastIndex((g) => g.command === cmd);
+
+// Replace the parameter blocks a group sends.
+function withParams(g, blocks) {
+  let i = 0;
+  return { command: g.command, steps: g.steps.map((s) => (s.out ? { ...s, data: blocks[i], requested: blocks[i++].length } : s)) };
+}
+
+function readGroup(sizes) {
+  return { command: CMD.READ, steps: sizes.map((s) => ({ out: false, requested: s, data: new Uint8Array(0) })) };
+}
+
+function chunks(total) {
+  const out = Array(Math.floor(total / BLOCK_BYTES)).fill(BLOCK_BYTES);
+  if (total % BLOCK_BYTES) out.push(total % BLOCK_BYTES);
+  return out;
+}
+
+function retarget(t, area) {
+  const dpi = t.yres;
+  if (t.xres !== dpi) throw new Error("templates with different x and y resolutions aren't supported");
+  const full = fullBed(dpi);
+  if (area.width <= 0 || area.height <= 0 || area.x < 0 || area.y < 0 ||
+      area.x + area.width > full.width || area.y + area.height > full.height) {
+    throw new Error(`area ${JSON.stringify(area)} is outside the bed (${full.width} x ${full.height} px at ${dpi} dpi)`);
+  }
+
+  const groups = t.groups;
+  const iParams = firstIndex(groups, CMD.PARAMS);
+  const p57t = params(groups[iParams])[0];
+  const imageWindow = lastIndex(groups, CMD.WINDOW);
+  const w41 = params(groups[imageWindow])[0];
+  const startT = u16(w41, 0), endT = u16(w41, 2);
+  const windowT = endT - startT;
+  const tx = u32(p57t, 8), ty = u32(p57t, 12);
+  const extra = Math.max(...lineShift(dpi));
+  const linesT = t.height + extra;
+  const rawWT = t.imageRawWidth ?? t.rawWidth();
+  const ratio = windowT / rawWT;
+  const origin = startT - Math.round(tx * ratio);
+
+  const quantum = ratio === 1 ? LINE_QUANTUM : RAW_QUANTUM;
+  const rawW = Math.ceil(area.width / quantum) * quantum; // the host crops the padding
+  const window = Math.round(rawW * ratio);
+  let start = origin + Math.round(area.x * ratio);
+  let cropX = 0;
+  const limit = origin + Math.round(SENSOR_SPAN_IN * dpi * ratio);
+  if (start + window > limit) { // near the right edge: start earlier, crop on the host
+    const shift = Math.ceil((start + window - limit) / ratio);
+    start -= Math.round(shift * ratio);
+    cropX = shift;
+  }
+  const usedPx = Math.min(window, Math.ceil((cropX + area.width) * ratio) + (ratio !== 1 ? USED_MARGIN : 0));
+  const lines = area.height + extra;
+  const perBlock = Math.min(255, Math.floor(BLOCK_BYTES / (rawW * 3)));
+  if (perBlock < 1) throw new Error(`a ${rawW} px line doesn't fit in one block`);
+
+  const spl = STEPS_PER_INCH / dpi;
+  const moves = groups.map((g, i) => (g.command === CMD.MOVE ? i : -1)).filter((i) => i >= 0);
+  if (moves.length < 2) throw new Error("template has no move to the scan area");
+  const [toTop, scanMove] = moves.slice(-2);
+  const ramp = lastIndex(groups.slice(0, toTop), CMD.TABLE);
+
+  const out = groups.slice();
+
+  const p57 = p57t.slice();
+  [area.x, area.y, area.width, area.height].forEach((v, i) => setU32(p57, 8 + i * 4, v));
+  const channels = t.grey ? 1 : 3 * (p57[25] & 0x10 ? 2 : 1); // mode 0x1013: 16-bit
+  p57[28] = Math.min(254, Math.floor(Math.floor(65536 / (area.width * channels)) / 2) * 2);
+  out[iParams] = withParams(groups[iParams], [p57]);
+
+  groups.forEach((g, i) => {
+    if (g.command === CMD.WINDOW) {
+      const p = params(g)[0];
+      if (u16(p, 0) !== startT || u16(p, 2) !== endT) return; // the probe's own window
+      const q = p.slice();
+      setU16(q, 0, start);
+      setU16(q, 2, start + window);
+      if (i === imageWindow) {
+        setU16(q, 4, lines);
+        q[18] = perBlock;
+      }
+      out[i] = withParams(g, [q]);
+    } else if (g.command === CMD.TABLE && params(g)[0][0] === 6) {
+      const header = params(g)[0].slice();
+      const len = window * 6;
+      header[5] = len & 0xff;
+      header[6] = (len >> 8) & 0xff;
+      header[7] = (len >> 16) & 0xff;
+      out[i] = withParams(g, [header, new Uint8Array(len)]);
+    }
+  });
+
+  const reads = groups.map((g, i) => (g.command === CMD.READ ? i : -1)).filter((i) => i >= 0);
+  reads.forEach((i, n) => {
+    if (n === 0) return; // the probe read is fixed-size
+    if (n < reads.length - 1) {
+      const refLines = u16(params(out[lastIndex(out.slice(0, i), CMD.WINDOW)])[0], 4);
+      out[i] = readGroup(chunks(refLines * window * 6 + 8));
+    } else {
+      const line = rawW * 3;
+      const sizes = Array(Math.floor(lines / perBlock)).fill(perBlock * line + 8);
+      if (lines % perBlock) sizes.push((lines % perBlock) * line + 8);
+      out[i] = readGroup(sizes);
+    }
+  });
+
+  // the move to the top of the area: same total distance plus the y change
+  let m = params(groups[toTop])[0];
+  const stepsT = u32(m, 0), rampT = u16(m, 6) + 1;
+  const distance = stepsT + 2 * rampT + Math.round((area.y - ty) * spl);
+  let n = params(groups[ramp])[1].length / 2;
+  while (n > 1 && distance - 2 * n < 0) n = Math.floor(n / 2);
+  if (distance - 2 * n < 0) throw new Error(`can't reach line ${area.y}: move of ${distance} steps`);
+  let q = m.slice();
+  setU32(q, 0, distance - 2 * n);
+  setU16(q, 6, n - 1);
+  setU16(q, 8, n - 1);
+  out[toTop] = withParams(groups[toTop], [q]);
+
+  // the scan move
+  m = params(groups[scanMove])[0];
+  const tail = u16(m, 4);
+  if (u32(m, 0) !== scanSteps(linesT, dpi) + tail) throw new Error("template's scan move doesn't match its line count");
+  q = m.slice();
+  setU32(q, 0, scanSteps(lines, dpi) + tail);
+  out[scanMove] = withParams(groups[scanMove], [q]);
+
+  const used = new Uint8Array(window);
+  used.fill(1, 0, usedPx);
+  const windows = [t.windows[0], ...t.windows.slice(1).map(() => window)];
+  return new Template({ ...t, groups: out, width: area.width, height: area.height, windows, used, cropX, imageRawWidth: rawW });
+}
+
+return { STEPS_PER_INCH, scanSteps, BLOCK_BYTES, RAW_QUANTUM, LINE_QUANTUM, USED_MARGIN, BED_IN, BED_MM, SENSOR_SPAN_IN, region, fromMm, fullBed, retarget };
+})();
+
+// ---- v500/protocol.js ----
+const __m13 = (() => {
+// The whole command sequence for a scan, built from scratch: no capture of
+// Epson's driver needed. (See PROTOCOL.md, "Building a scan without a template".)
+//
+// It is the sequence Epson's driver sends, with every table computed:
+// - gamma (`1e 84` type 02): floor(65535 x (x / 4095)^(1/1.8)) >> 4, exact;
+// - motor ramps (type 05): an interval going from `start` to `cruise` over
+//   n steps as start / sqrt(1 + a i), a = ((start / cruise)^2 - 1) / (n - 1),
+//   within 4 timer ticks of Epson's;
+// - and a few per-resolution constants measured from captures.
+// The area is then set by retarget() (geometry.js), the same code that
+// retargets captured templates.
+
+const { setU16, setU32 } = __m5;
+const { retarget, scanSteps } = __m8;
+const { lineShift } = __m9;
+const { CMD, POLL_READY, STATUS, Template } = __m10;
+const ACK = new Uint8Array([0x06]);
+
+// Per-resolution settings: the line rate lo/hi of 2400 steps per inch, the
+// sensor line period, the analog-front-end mode, the dark probe window, the
+// image `1e 41` bytes 8-9, sensor units per pixel and the window origin.
+// 200-800 measured from captures of Epson's driver; 1600 from the plugin's
+// tables alone (static analysis: PROTOCOL.md, "Where the settings come from").
+// The motor settings follow from the period (motor() below).
+// fastPeriod: the shortest period the plugin's own rule allows for the
+// sensor mode (half the minimum line plus 200, rounded up to the Y table's
+// step). Faster scans, slightly shorter exposure; checked on the real
+// scanner: same image, noise up 6% at 400 dpi, 14% at 800, 20% at 1600.
+const RESOLUTIONS = {
+  200: { fastPeriod: 2688, lines: [1, 12], period: 3840, afe: 4, probe: [0x15, 0x25], imageMode: 0x1b1, ratio: 8 / 3, origin: 143 },
+  400: { fastPeriod: 2688, lines: [1, 6], period: 3264, afe: 4, probe: [0x15, 0x25], imageMode: 0x1a1, ratio: 4 / 3, origin: 143 },
+  800: { fastPeriod: 3840, lines: [1, 3], period: 5376, afe: 3, probe: [0x20, 0x30], imageMode: 0x101, ratio: 1, origin: 213 },
+  // The origin is the plugin's 431 less the 1-2 units our captures show at
+  // the other resolutions (doubled); not yet checked against a capture.
+  1600: { fastPeriod: 7416, lines: [2, 3], period: 10848, afe: 2, probe: [61, 109], imageMode: 0x0201, ratio: 1, origin: 427 },
+};
+
+// The motor for a line period, as the plugin computes it (SYMBOL_41 and
+// SYMBOL_292). T is the step interval that keeps pace with the sensor, f the
+// step rate: fast enough for a full acceleration ramp, a half-step ramp, or a
+// constant speed. Reproduces every capture.
+function motor(dpi, period) {
+  const [lo, hi] = RESOLUTIONS[dpi].lines;
+  const T = (lo * period) / hi;
+  const f = (hi * 1e6) / (period * lo);
+  let scan;
+  if (f > 1999) scan = { table: ramp({ start: 2500, cruise: T, n: 512 }), used: 512, flags: 0 };
+  else if (f >= 700) scan = { table: ramp({ start: 1249, cruise: T / 2, n: 512 }), used: 256, flags: 2 };
+  else scan = { table: new Uint16Array([T >> 4]), used: 0, flags: 8 };
+  const preroll = f > 5499 ? 160 : f > 150 ? 128 : 32;
+  const tail = Math.floor(preroll / hi) * hi;
+  return {
+    scan,
+    tail,
+    slowSpeed: Math.floor(period / 24), // the 51-step move to the white reference
+    toTop: 1338 - tail - scan.used, // the move to the area at y = 0, ramps included
+  };
+}
+const MOVE_RAMP = { start: 2500, cruise: 160, n: 512 }; // the move to the top of the area
+const SETTLE = new Uint8Array([0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]); // 1e 43
+const SETTLE_SCAN = new Uint8Array([0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f, 0x84, 0x7d, 0x77, 0x7e, 0xdf, 0x7f]);
+// `1e 84` type 07: unknown purpose, constant in every capture. u16 pairs, then 0xff.
+const TYPE07 = [0, 0, 40, 0x31c0, 200, 0x31c0, 400, 0x1000];
+
+function gammaTable(gamma = 1.8) {
+  const out = new Uint16Array(4096);
+  for (let x = 0; x < 4096; x++) out[x] = Math.floor(65535 * (x / 4095) ** (1 / gamma)) >> 4;
+  return out;
+}
+
+function ramp({ start, cruise, n }) {
+  const a = ((start / cruise) ** 2 - 1) / (n - 1);
+  const out = new Uint16Array(n);
+  for (let i = 0; i < n; i++) out[i] = Math.max(cruise, Math.floor(start / Math.sqrt(1 + a * i)));
+  return out;
+}
+
+// ---- building blocks ----
+
+const u8 = (arr) => new Uint8Array(arr);
+const bytesOf = (typed) => new Uint8Array(typed.buffer, typed.byteOffset, typed.byteLength).slice();
+const step = (out, data, requested = data.length) => ({ out, requested, data });
+const ack = () => step(false, ACK, 1);
+
+function block(length, fields = []) {
+  const b = new Uint8Array(length);
+  for (const [offset, size, value] of fields) {
+    if (size === 1) b[offset] = value;
+    else if (size === 2) setU16(b, offset, value);
+    else setU32(b, offset, value);
+  }
+  return b;
+}
+
+function tableHeader(prefix, length) {
+  return u8([...prefix, length & 0xff, (length >> 8) & 0xff, (length >> 16) & 0xff]);
+}
+
+class Builder {
+  constructor() {
+    this.groups = [];
+  }
+  cmd(id, ...steps) {
+    this.groups.push({ command: id, steps });
+    return this;
+  }
+  query(id, size) {
+    return this.cmd(id, step(false, new Uint8Array(0), size));
+  }
+  status() {
+    return this.query(STATUS, 2);
+  }
+  set(id, data) {
+    return this.cmd(id, ack(), step(true, data), ack());
+  }
+  table(prefix, data) {
+    return this.cmd(CMD.TABLE, ack(), step(true, tableHeader(prefix, data.length)), step(true, data), ack());
+  }
+  read(sizes) {
+    return this.cmd(CMD.READ, ...sizes.map((s) => step(false, new Uint8Array(0), s)));
+  }
+}
+
+// ---- the sequence ----
+
+// A base template for `dpi`: a one-line, 384 px scan at the top left. Use
+// build() for a real area.
+function base(dpi, { grey = false, gamma = 1.8, period = null, fast = false } = {}) {
+  const r0 = RESOLUTIONS[dpi];
+  if (!r0) throw new Error(`no settings for ${dpi} dpi yet; have ${Object.keys(RESOLUTIONS).join(", ")}`);
+  const r = { ...r0, period: period ?? (fast ? r0.fastPeriod : r0.period) };
+  const m = motor(dpi, r.period);
+  const [lo, hi] = r.lines;
+  const probeWidth = r.probe[1] - r.probe[0];
+  const width = 384, height = 1, extra = Math.max(...lineShift(dpi));
+  const lines = height + extra;
+  const window = Math.round(width * r.ratio);
+  const start = r.origin, end = start + window;
+  const perBlock = Math.min(255, Math.floor(51200 / (width * 3)));
+  const b = new Builder();
+
+  // open the session the way Epson's frontend does: status, parameters,
+  // identity, and twice a reset (1b 40)
+  const opening = { 0x1b03: 2, 0x1e53: 42, 0x1e65: 1, 0x1b13: 28 };
+  for (const id of [0x1b03, 0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1b40,
+    0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1b40, 0x1e53, 0x1b03, 0x1e65, 0x1b13, 0x1b03, 0x1e65, 0x1b13]) {
+    if (id === 0x1b40) b.cmd(id, ack());
+    else b.query(id, opening[id]);
+  }
+
+  // identity lookup tables, one per colour
+  const identity = u8(Array.from({ length: 256 }, (_, i) => i));
+  for (const addr of [0xfc, 0xfd, 0xfe]) b.table([0x03, 0x00, addr, 0x1f, 0x02], identity);
+  b.status().query(0x1e65, 1).query(0x1b13, 28).query(0x1e53, 42);
+
+  // scan parameters
+  const mode = grey ? 0x800 : 0x813;
+  b.set(CMD.PARAMS, block(42, [[0, 4, dpi], [4, 4, dpi], [16, 4, width], [20, 4, height],
+    [24, 4, mode], [28, 1, 0], [29, 1, 4], [32, 4, 0x8000]]));
+
+  // lamp on, sensor state
+  b.status().query(0x1ea1, 1).set(0x1ea2, u8([1])).status();
+  b.cmd(0x1e87, ack(), step(true, u8([0])), step(false, new Uint8Array(0), 10));
+  b.query(0x1e86, 4);
+
+  // analog front end: let the scanner measure its levels, twice, then keep them
+  const levels = block(12, [[0, 1, r.afe], [2, 2, r.period]]);
+  b.set(CMD.AFE, u8([0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0]));
+  b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
+  b.set(0x1e46, levels).query(POLL_READY, 1).query(CMD.AFE_READ, 12);
+  b.set(0x1e11, u8([r.afe])).set(CMD.AFE, new Uint8Array(12)); // 1e 31: the measured levels, at run time
+
+  // sensor setup and the dark probe
+  b.set(0x1e21, block(26, [[0, 2, r.period]]));
+  const t07 = new Uint8Array(256).fill(0xff);
+  TYPE07.forEach((v, i) => setU16(t07, i * 2, v));
+  b.cmd(CMD.TABLE, ack(), step(true, u8([0x07, 0, 0, 0, 0, 0, 1, 0])), step(true, t07), ack());
+  const timing = (darkFlag = 0) => block(12, [[0, 2, r.period], [9, 1, darkFlag]]);
+  b.set(0x1e22, timing());
+  b.set(CMD.WINDOW, block(22, [[0, 2, r.probe[0]], [2, 2, r.probe[1]], [4, 2, 4], [9, 1, lo], [10, 1, hi], [16, 1, 0x80], [18, 1, 4]]));
+  b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).status();
+  b.read([probeWidth * 4 * 6 + 8]).status();
+
+  // white reference: 32 lines, 51 steps into the bed, with the probe's offsets
+  b.set(0x1e22, timing());
+  b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, 32], [9, 1, 2], [10, 1, 3], [11, 1, 0x40], [16, 1, 0x80], [17, 1, 0x80], [18, 1, 32]]));
+  b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE); // 1e 42: probe offsets, at run time
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(new Uint16Array([m.slowSpeed])));
+  b.set(CMD.MOVE, block(12, [[0, 4, 51], [4, 2, 3], [10, 2, 8]])).status();
+  b.read([]).status(); // sizes set by retarget()
+
+  // dark reference: lamp off, 16 lines
+  b.set(0x1ea2, u8([0])).set(0x1e22, timing(1));
+  const dark = block(22, [[0, 2, start], [2, 2, end], [4, 2, 16], [9, 1, lo], [10, 1, hi], [16, 1, 0x80], [18, 1, 16]]);
+  b.set(CMD.WINDOW, dark).set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE).set(CMD.WINDOW, dark.slice()).status();
+  b.read([]).status();
+
+  // lamp on, tone curves, move to the top of the area
+  b.set(0x1ea2, u8([1])).query(0x1e86, 4);
+  const g = bytesOf(gammaTable(gamma));
+  for (const addr of [0x00, 0x20, 0x40]) b.cmd(CMD.TABLE, ack(), step(true, u8([0x02, 0x00, addr, 0x38, 0x00, 0x00, 0x20, 0x00])), step(true, g), ack());
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(ramp(MOVE_RAMP)));
+  const n = 256;
+  b.set(CMD.MOVE, block(12, [[0, 4, m.toTop - 2 * n], [6, 2, n - 1], [8, 2, n - 1], [10, 2, 0x10]]));
+  b.cmd(0x1e05, ack()).status();
+
+  // the image pass
+  b.set(0x1e22, timing());
+  b.set(CMD.WINDOW, block(22, [[0, 2, start], [2, 2, end], [4, 2, lines], [8, 2, r.imageMode], [10, 1, hi],
+    [11, 1, 0x80], [12, 1, 0x80], [16, 1, 0x80], [17, 1, 0xa0], [18, 1, perBlock]])); // 11 and 15: at run time
+  b.set(CMD.LEVELS, new Uint8Array(18)).set(0x1e43, SETTLE_SCAN); // 1e 42: calibration, at run time
+  b.table([0x06, 0x00, 0x08, 0x01, 0x02], new Uint8Array(window * 6)); // shading: at run time
+  b.table([0x05, 0x00, 0x00, 0x01, 0x02], bytesOf(m.scan.table));
+  const used = m.scan.used ? m.scan.used - 1 : 0;
+  b.set(CMD.MOVE, block(12, [[0, 4, scanSteps(lines, dpi) + m.tail], [4, 2, m.tail], [6, 2, used], [8, 2, used], [10, 2, m.scan.flags]]));
+  b.status().read([]);
+
+  return new Template({
+    name: `built-in ${dpi} dpi`, groups: b.groups, xres: dpi, yres: dpi, width, height, mode, grey, deep: false,
+    windows: [probeWidth, window, window, window], used: new Uint8Array(window).fill(1), imageRawWidth: width,
+  });
+}
+
+// The command sequence for scanning `area` (pixels, geometry.js region) at `dpi`.
+function build(dpi, area, options = {}) {
+  const t = retarget(base(dpi, options), area);
+  if (options.period || !options.fast) return t;
+  // The fast period is too short for the widest windows: at 200 dpi from
+  // 197 mm the window ends at sensor unit 5,263 and 2,688 hangs the white
+  // read; the shortest that works is between 2,832 and 2,856 (checked),
+  // just over end / 2 + 200. Keep a margin.
+  const w = t.groups.findLast((g) => g.command === 0x1e41).steps.find((x) => x.out).data;
+  const end = w[2] | (w[3] << 8);
+  const need = Math.ceil((Math.ceil(end / 2) + 272) / 24) * 24;
+  return need > RESOLUTIONS[dpi].fastPeriod ? retarget(base(dpi, { ...options, period: need }), area) : t;
+}
+
+const SUPPORTED = Object.keys(RESOLUTIONS).map(Number);
+
+return { RESOLUTIONS, motor, MOVE_RAMP, gammaTable, ramp, build, SUPPORTED };
+})();
+
+// ---- v500/webusb.js ----
+const __m14 = (() => {
+// Bulk transport to the V500 over WebUSB (Chrome and Edge; see v500/usb.py).
+
+const VENDOR_ID = 0x04b8;
+const PRODUCT_ID = 0x0130;
+const TIMEOUT_MS = 10000;
+
+class WebUsbTransport {
+  constructor(device) {
+    this.device = device;
+  }
+
+  static get supported() {
+    return typeof navigator !== "undefined" && "usb" in navigator;
+  }
+
+  // A scanner this page was allowed before, or null.
+  static async remembered() {
+    const devices = await navigator.usb.getDevices();
+    const d = devices.find((x) => x.vendorId === VENDOR_ID && x.productId === PRODUCT_ID);
+    return d ? WebUsbTransport.open(d) : null;
+  }
+
+  // Ask the user to pick the scanner. Must run from a click.
+  static async request() {
+    const d = await navigator.usb.requestDevice({ filters: [{ vendorId: VENDOR_ID, productId: PRODUCT_ID }] });
+    return WebUsbTransport.open(d);
+  }
+
+  static async open(device) {
+    if (!device.opened) await device.open();
+    if (device.configuration === null) await device.selectConfiguration(1);
+    const iface = device.configuration.interfaces[0];
+    try {
+      await device.claimInterface(iface.interfaceNumber);
+    } catch (e) {
+      throw new Error(`can't claim the scanner (${e.message}). Is another program using it? ` +
+        "On Linux install udev/60-epson-v500.rules; on Windows the device needs the WinUSB driver.");
+    }
+    const t = new WebUsbTransport(device);
+    t.interfaceNumber = iface.interfaceNumber;
+    const eps = iface.alternate.endpoints.filter((e) => e.type === "bulk");
+    t.outEp = eps.find((e) => e.direction === "out");
+    t.inEp = eps.find((e) => e.direction === "in");
+    if (!t.outEp || !t.inEp) throw new Error("scanner has no bulk endpoints");
+    return t;
+  }
+
+  get name() {
+    return this.device.productName || "Epson scanner";
+  }
+
+  async write(data) {
+    const r = await withTimeout(this.device.transferOut(this.outEp.endpointNumber, data), "write");
+    if (r.status !== "ok" || r.bytesWritten !== data.length) {
+      throw new Error(`short write: ${r.bytesWritten} of ${data.length} bytes (${r.status})`);
+    }
+  }
+
+  async read(size) {
+    // Ask for at least one full packet: a shorter request overflows if the
+    // scanner sends more than `size` bytes.
+    const want = Math.max(size, this.inEp.packetSize);
+    // A transfer whose wait timed out is still queued in the browser and
+    // would take the next reply (e.g. the answer to an abort). Reuse it as
+    // this read when it's big enough; otherwise let it finish first.
+    let transfer = null;
+    if (this.stale) {
+      const { promise, want: staleWant } = this.stale;
+      this.stale = null;
+      if (staleWant >= size) transfer = { promise, want: staleWant };
+      else await withTimeout(promise, "read").catch(() => {});
+    }
+    transfer ??= { promise: this.device.transferIn(this.inEp.endpointNumber, want), want };
+    let r;
+    try {
+      r = await withTimeout(transfer.promise, "read");
+    } catch (e) {
+      this.stale = transfer;
+      throw e;
+    }
+    if (r.status !== "ok") throw new Error(`read failed: ${r.status}`);
+    return new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
+  }
+
+  async close() {
+    try {
+      await this.device.releaseInterface(this.interfaceNumber);
+    } catch { /* already gone */ }
+    await this.device.close();
+  }
+}
+
+function withTimeout(promise, what) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`scanner didn't answer (${what} timed out); power-cycle it if this repeats`)), TIMEOUT_MS);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+return { VENDOR_ID, PRODUCT_ID, WebUsbTransport };
+})();
+
+// ---- app.js ----
+// The scanner page: connect over WebUSB, upload firmware, scan, paint rows live.
+
+const { findFirmware } = __m1;
+const { setupBooth } = __m2;
+const { decodeBuiltIn, FIRMWARE_ID, firmwareFile, withFirmware } = __m6;
+const { parseFirmware, status, isLoaded, upload } = __m7;
+const { fromMm, fullBed, retarget } = __m8;
+const { build, SUPPORTED } = __m13;
+const { Replayer, Template } = __m10;
+const { WebUsbTransport } = __m14;
+const { ready } = __m4;
+// The page as it arrived, before any script changed it: the source for a
+// personal copy with the firmware built in.
+const PRISTINE = "<!doctype html>\n" + document.documentElement.outerHTML;
+// A single-file build has its code inline; only that can be copied on its own.
+const SELF_CONTAINED = Boolean(document.querySelector('script[type="module"]:not([src])'));
+
+const $ = (id) => document.getElementById(id);
+const ui = {
+  connect: $("connect"), device: $("device"), firmware: $("firmware"), firmwareName: $("firmware-name"),
+  templates: $("templates"), templatesList: $("templates-list"), forget: $("forget"),
+  dpi: $("dpi"), mode: $("mode"), fast: $("fast"), preset: $("area-preset"), areaMm: $("area-mm"),
+  left: $("left"), top: $("top"), width: $("width"), height: $("height"),
+  scan: $("scan"), cancel: $("cancel"), save: $("save"), progress: $("progress"), status: $("status"), log: $("log"),
+  canvas: $("canvas"), placeholder: $("placeholder"), unsupported: $("unsupported"),
+};
+
+const state = {
+  io: null,
+  firmware: null, // parsed esfw7C.bin
+  templates: new Map(), // dpi -> Template (colour, 8-bit), for resolutions not built in
+  levels: null, // {data, at, key}: analog levels measured by an earlier scan, reused while fresh
+  calibration: null, // {key, cal, at}: an earlier scan's calibration, reused for the same window
+  abort: null, // AbortController of the scan in progress
+  ioLock: Promise.resolve(), // one user of the USB connection at a time
+};
+
+// Run `fn` with the scanner to itself: button polls never interleave with a scan.
+async function exclusive(fn) {
+  const before = state.ioLock;
+  let release;
+  state.ioLock = new Promise((r) => (release = r));
+  await before;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+
+// ---- stored files (IndexedDB; this browser only) ----
+
+const DB = "v500-scanner";
+
+function db() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("files");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Storage can fail or never answer (private windows, blocked site data): give
+// up after a moment and work without it.
+async function store(op, ...args) {
+  const attempt = (async () => {
+    const d = await db();
+    return await new Promise((resolve, reject) => {
+      const tx = d.transaction("files", op.startsWith("get") ? "readonly" : "readwrite");
+      const req = tx.objectStore("files")[op](...args);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  })();
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(undefined), 2000));
+  try {
+    return await Promise.race([attempt, timeout]);
+  } catch {
+    return undefined;
+  }
+}
+
+// ---- helpers ----
+
+const LOG_LINES = 500; // a booth runs for hours: keep the last lines only
+const logLines = [];
+
+function log(line) {
+  logLines.push(line);
+  if (logLines.length > LOG_LINES) logLines.splice(0, logLines.length - LOG_LINES);
+  ui.log.textContent = logLines.join("\n") + "\n";
+  ui.log.scrollTop = ui.log.scrollHeight;
+}
+
+function say(text, kind = "") {
+  ui.status.textContent = text;
+  ui.status.className = "status " + kind;
+}
+
+function refresh() {
+  ui.scan.disabled = !state.io || state.scanning;
+  $("booth-start").disabled = state.scanning; // the booth waits for the scanner by itself
+  ui.connect.disabled = state.scanning;
+  const dpi = Number(ui.dpi.value);
+  const builtIn = SUPPORTED.includes(dpi);
+  ui.mode.querySelector('[value="grey"]').disabled = !builtIn && !state.templates.get(dpi)?.grey;
+  if (!builtIn) ui.mode.value = state.templates.get(dpi)?.grey ? "grey" : "colour";
+  for (const el of [ui.firmware, ui.templates, ui.dpi, ui.mode, ui.preset, ui.left, ui.top, ui.width, ui.height, ui.forget]) {
+    el.disabled = state.scanning;
+  }
+}
+
+// ---- scanner ----
+
+// Reusing the last measured analog levels skips the scanner's 2.2 s
+// self-measurement, and reusing the calibration skips the reference reads
+// and the lamp off/on (another 1 s). On the real scanner the first rows of a
+// 60 x 40 mm scan then appear after 1.8 s instead of 5 s, same image
+// quality. Both are measured again after a power cycle and every 10 minutes.
+const LEVELS_FRESH_MS = 10 * 60 * 1000;
+const fresh = (entry) => entry && Date.now() - entry.at < LEVELS_FRESH_MS;
+
+async function attach(io) {
+  state.io = io;
+  state.levels = state.calibration = null;
+  try {
+    const s = await status(io);
+    ui.device.textContent = `${io.name}: ${isLoaded(s) ? "firmware running" : "needs firmware"}`;
+  } catch (e) {
+    ui.device.textContent = `${io.name}: not answering`;
+    say(`The scanner didn't answer: ${e.message}`, "bad");
+  }
+  refresh();
+}
+
+ui.connect.addEventListener("click", async () => {
+  try {
+    if (state.io) await state.io.close().catch(() => {});
+    state.io = null;
+    await attach(await WebUsbTransport.request());
+  } catch (e) {
+    if (e.name !== "NotFoundError") say(e.message, "bad"); // NotFoundError: picker closed
+    refresh();
+  }
+});
+
+// ---- files ----
+
+async function useFirmware(name, data) {
+  state.firmware = parseFirmware(data);
+  ui.firmwareName.textContent = `${state.firmware.ident} (from ${name})`;
+  $("fw-copy-box").hidden = !SELF_CONTAINED || builtInFirmware() !== null;
+}
+
+// Firmware built into this copy of the page, or null.
+function builtInFirmware() {
+  return decodeBuiltIn(document.getElementById(FIRMWARE_ID)?.textContent);
+}
+
+// A copy of this page with the firmware inside, to open on any computer.
+$("fw-copy").addEventListener("click", () => {
+  const html = withFirmware(PRISTINE, firmwareFile(state.firmware));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  a.download = "v500-scanner.html";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  say("Saved v500-scanner.html with the firmware built in. Keep it for your own computers.", "ok");
+});
+
+async function takeFirmwareFile(f) {
+  try {
+    say("Reading the firmware…");
+    const data = await findFirmware(await f.arrayBuffer());
+    await useFirmware(f.name, data.buffer);
+    await store("put", { name: f.name, data: data.buffer }, "firmware");
+    say("Firmware ready.", "ok");
+  } catch (e) {
+    say(e.message, "bad");
+  }
+}
+
+// Drop Epson's download (or a template capture) anywhere on the page.
+document.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  document.body.classList.add("dropping");
+});
+document.addEventListener("dragleave", (e) => {
+  if (!e.relatedTarget) document.body.classList.remove("dropping");
+});
+document.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  document.body.classList.remove("dropping");
+  for (const f of e.dataTransfer.files) {
+    if (f.name.endsWith(".usblog")) {
+      const note = addTemplate(f.name, await f.arrayBuffer());
+      showTemplates(note ? [note] : []);
+    } else {
+      await takeFirmwareFile(f);
+    }
+  }
+});
+
+function addTemplate(name, data) {
+  let t;
+  try {
+    t = Template.fromUsblog(data, name);
+  } catch {
+    return `${name}: not a scan, skipped`;
+  }
+  if (t.deep) return `${name}: 16-bit, skipped (16-bit scans hang the scanner)`;
+  if (t.xres !== t.yres) return `${name}: unequal x and y resolution, skipped`;
+  const have = state.templates.get(t.yres);
+  if (SUPPORTED.includes(t.yres)) return `${name}: ${t.yres} dpi is built in, template not needed`;
+  if (!have || (have.grey && !t.grey)) state.templates.set(t.yres, t);
+  return null;
+}
+
+function showTemplates(notes = []) {
+  const extra = [...state.templates.keys()].sort((a, b) => a - b);
+  ui.templatesList.textContent = extra.length
+    ? extra.map((d) => `${d} dpi ${state.templates.get(d).grey ? "grey" : "colour"}`).join(", ")
+    : "none";
+  if (notes.length) log(notes.join("\n"));
+  const keep = Number(ui.dpi.value) || SUPPORTED[0];
+  const dpis = [...new Set([...SUPPORTED, ...extra])].sort((a, b) => a - b);
+  ui.dpi.replaceChildren(...dpis.map((d) => new Option(`${d} dpi${SUPPORTED.includes(d) ? "" : " (template)"}`, d, false, d === keep)));
+  refresh();
+}
+
+ui.firmware.addEventListener("change", async () => {
+  const f = ui.firmware.files[0];
+  if (!f) return;
+  await takeFirmwareFile(f);
+});
+
+ui.templates.addEventListener("change", async () => {
+  const notes = [];
+  for (const f of ui.templates.files) {
+    const data = await f.arrayBuffer();
+    const note = addTemplate(f.name, data);
+    if (note) notes.push(note);
+    else await store("put", { name: f.name, data }, "template:" + f.name);
+  }
+  showTemplates(notes);
+});
+
+ui.forget.addEventListener("click", async () => {
+  await store("clear");
+  state.firmware = null;
+  state.templates.clear();
+  ui.firmwareName.textContent = "none";
+  showTemplates();
+  say("Stored files forgotten.");
+});
+
+ui.dpi.addEventListener("change", refresh);
+
+ui.preset.addEventListener("change", () => {
+  ui.areaMm.hidden = ui.preset.value !== "custom";
+});
+
+// ---- scanning ----
+
+function paint(ctx, { top, rows, data, width, channels }) {
+  const img = ctx.createImageData(width, rows);
+  const px = img.data;
+  for (let i = 0, n = width * rows; i < n; i++) {
+    const s = i * channels;
+    px[i * 4] = data[s];
+    px[i * 4 + 1] = data[channels === 3 ? s + 1 : s];
+    px[i * 4 + 2] = data[channels === 3 ? s + 2 : s];
+    px[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, top);
+}
+
+// One scan with the settings in the panel, painted into `canvas` as rows arrive.
+// `onStatus(text)` reports what's happening. Returns {width, height, seconds}.
+function performScan(...args) {
+  return exclusive(() => scanNow(...args));
+}
+
+async function scanNow(canvas, onStatus, onFraction = () => {}) {
+  const dpi = Number(ui.dpi.value);
+  const template = state.templates.get(dpi);
+  if (!state.io) throw new Error("Connect the scanner first.");
+  if (!SUPPORTED.includes(dpi) && !template) throw new Error(`No way to scan at ${dpi} dpi.`);
+  const io = state.io;
+  // still driving home from the last scan, or stuck: wait, abort, re-home
+  const before = await ready(io, { log });
+  if (!isLoaded(before)) {
+    if (!state.firmware) throw new Error("The scanner needs its firmware: pick Epson's driver download first.");
+    onStatus("Uploading firmware…");
+    await upload(state.firmware, io);
+    state.levels = state.calibration = null; // power-cycled: measure again
+    log(`firmware uploaded: ${state.firmware.ident}`);
+    ui.device.textContent = `${io.name}: firmware running`;
+  }
+  const area = ui.preset.value === "full"
+    ? fullBed(dpi)
+    : fromMm(dpi, +ui.left.value, +ui.top.value, +ui.width.value, +ui.height.value);
+  const fast = ui.fast.checked;
+  const t = SUPPORTED.includes(dpi) ? build(dpi, area, { grey: ui.mode.value === "grey", fast }) : retarget(template, area);
+  const levelsKey = `${dpi}|${fast}|${t.name}`;
+  log(`scan: ${t.width} x ${t.height} px at ${dpi} dpi, ${t.grey ? "grey" : "colour"}, from ${t.name}`);
+
+  canvas.width = t.width;
+  canvas.height = t.height;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, t.width, t.height);
+
+  onStatus("Warming up…");
+  const started = performance.now();
+  let imaging = false;
+  const levels = fresh(state.levels) && state.levels.key === levelsKey ? state.levels.data : null;
+  if (levels) log("reusing the analog levels measured earlier");
+  // the white and dark references were read through those levels' gains
+  const calibration = levels && fresh(state.calibration) ? state.calibration : null;
+  state.abort = new AbortController();
+  const replayer = new Replayer(t, io, {
+    signal: state.abort.signal,
+    levels,
+    calibration,
+    log,
+    onRows: (r) => {
+      if (!imaging) {
+        imaging = true;
+        onStatus("Scanning…");
+      }
+      paint(ctx, r);
+      onFraction((r.top + r.rows) / t.height);
+    },
+    onProgress: (i, n) => {
+      if (!imaging) onFraction((0.15 * i) / n); // setup and calibration: the first sliver
+    },
+  });
+  try {
+    await replayer.run();
+  } finally {
+    state.abort = null;
+  }
+  if (!levels) state.levels = { data: replayer.afe, at: Date.now(), key: levelsKey };
+  if (replayer.calibration && replayer.calibration.cal !== calibration?.cal) state.calibration = { ...replayer.calibration, at: Date.now() };
+  onFraction(1);
+  return { width: t.width, height: t.height, seconds: (performance.now() - started) / 1000 };
+}
+
+ui.cancel.addEventListener("click", () => state.abort?.abort());
+
+ui.scan.addEventListener("click", async () => {
+  state.scanning = true;
+  refresh();
+  ui.cancel.hidden = false;
+  ui.save.disabled = true;
+  ui.progress.hidden = false;
+  ui.progress.value = 0;
+  ui.placeholder.hidden = true;
+  try {
+    const r = await performScan(ui.canvas, (text) => say(text), (f) => (ui.progress.value = f));
+    say(`Done: ${r.width} x ${r.height} px in ${r.seconds.toFixed(1)} s.`, "ok");
+    ui.save.disabled = false;
+  } catch (e) {
+    if (e.name === "AbortError") say("Scan cancelled.");
+    else say(`Scan failed: ${e.message}`, "bad");
+    log(`error: ${e.stack || e.message}`);
+  } finally {
+    state.scanning = false;
+    ui.cancel.hidden = true;
+    refresh();
+  }
+});
+
+// ---- booth mode (booth.js) ----
+
+const boothCtx = {
+  state, log, exclusive, refresh, performScan,
+  // forget the reused levels and calibration: the next scan measures again
+  recalibrate: () => (state.levels = state.calibration = null),
+  onConnection: () => {},
+};
+setupBooth(boothCtx);
+
+ui.save.addEventListener("click", () => {
+  ui.canvas.toBlob((blob) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `v500-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }, "image/png");
+});
+
+// ---- start ----
+
+async function start() {
+  if (!WebUsbTransport.supported) {
+    ui.unsupported.hidden = false;
+    ui.connect.disabled = true;
+  } else {
+    navigator.usb.addEventListener("disconnect", (e) => {
+      if (state.io && e.device === state.io.device) {
+        state.io = null;
+        ui.device.textContent = "Disconnected";
+        refresh();
+        boothCtx.onConnection(false);
+      }
+    });
+    // plugged back in (or power-cycled): reconnect without a click, since
+    // this page was already allowed to use it
+    navigator.usb.addEventListener("connect", async (e) => {
+      if (state.io || e.device.vendorId !== 0x04b8 || e.device.productId !== 0x0130) return;
+      try {
+        await attach(await WebUsbTransport.open(e.device));
+        log("scanner reconnected");
+        boothCtx.onConnection(true);
+      } catch (err) {
+        log(`couldn't reconnect: ${err.message}`);
+      }
+    });
+    try {
+      const io = await WebUsbTransport.remembered();
+      if (io) await attach(io);
+    } catch (e) {
+      log(`couldn't reopen the scanner: ${e.message}`);
+    }
+  }
+
+  const built = builtInFirmware();
+  if (built) {
+    await useFirmware("this page", built.buffer);
+    $("fw-builtin").hidden = false;
+    $("fw-setup").hidden = true;
+  } else {
+    const fw = await store("get", "firmware");
+    if (fw) await useFirmware(fw.name, fw.data).catch(() => {});
+  }
+  const keys = (await store("getAllKeys")) ?? [];
+  const notes = [];
+  for (const key of keys.filter((k) => String(k).startsWith("template:"))) {
+    const f = await store("get", key);
+    const note = f && addTemplate(f.name, f.data);
+    if (note) notes.push(note);
+  }
+  showTemplates(notes);
+  refresh();
+}
+
+start();
+
+</script>
+</head>
+<body>
+  <header>
+    <h1>V500 Scanner</h1>
+    <p class="sub">Epson Perfection V500 Photo, driven from the browser over WebUSB. No Epson software involved.</p>
+  </header>
+
+  <p id="unsupported" class="banner" hidden>
+    This browser has no WebUSB. Use Chrome or Edge on a computer, and open the page from
+    <code>http://localhost</code> or over https.
+  </p>
+
+  <main>
+    <section class="panel">
+      <h2><span class="n">1</span> Scanner</h2>
+      <div class="row">
+        <button id="connect">Connect</button>
+        <span id="device" class="muted">Not connected</span>
+      </div>
+
+      <h2><span class="n">2</span> Firmware</h2>
+      <p id="fw-builtin" class="small" hidden>Built into this copy of the page: nothing to set up.</p>
+      <div id="fw-setup">
+        <p class="muted small">The scanner needs Epson's firmware after every power-on. Get Epson's
+          free Linux driver (650 KB), then drop it on this page or pick it. The page takes the
+          firmware out of it and keeps it in this browser.</p>
+        <div class="row">
+          <a id="fw-get" class="button" href="https://download2.ebz.epson.net/iscan/plugin/gt-x770/deb/x64/iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz">Get it from Epson</a>
+          <input id="firmware" type="file" accept=".gz,.deb,.bin" aria-label="Epson driver download">
+        </div>
+      </div>
+      <span id="firmware-name" class="muted small">none</span>
+      <div id="fw-copy-box" hidden>
+        <div class="row"><button id="fw-copy">Save a copy with the firmware built in</button></div>
+        <p class="muted small">That copy works on any computer with Chrome or Edge, with nothing to pick
+          or install. It's for your own computers only: Epson's licence doesn't allow sharing the
+          firmware, so don't post it publicly.</p>
+      </div>
+      <details class="advanced">
+        <summary>Templates (optional)</summary>
+        <p class="muted small">Captures of Epson's driver (<code>tools/capture</code>) add resolutions
+          the page can't build yet.</p>
+        <label class="file">
+          <input id="templates" type="file" accept=".usblog" multiple>
+          <span id="templates-list" class="muted small">none</span>
+        </label>
+      </details>
+      <button id="forget" class="link">Forget stored files</button>
+
+      <h2><span class="n">3</span> Scan</h2>
+      <div class="grid">
+        <label>Resolution <select id="dpi"></select></label>
+        <label>Mode <select id="mode">
+          <option value="colour">Colour</option>
+          <option value="grey">Grey</option>
+        </select></label>
+      </div>
+      <label class="check"><input id="fast" type="checkbox" checked> Fast scanning
+        <span class="muted small">(shorter exposure: a third faster, a little more noise at 800-1600 dpi)</span></label>
+      <div class="grid">
+        <label>Area <select id="area-preset">
+          <option value="full">Full bed</option>
+          <option value="custom">Custom (mm)</option>
+        </select></label>
+      </div>
+      <div id="area-mm" class="grid four" hidden>
+        <label>Left <input id="left" type="number" min="0" max="215" step="1" value="20"></label>
+        <label>Top <input id="top" type="number" min="0" max="297" step="1" value="30"></label>
+        <label>Width <input id="width" type="number" min="1" max="215" step="1" value="150"></label>
+        <label>Height <input id="height" type="number" min="1" max="297" step="1" value="100"></label>
+      </div>
+      <div class="row">
+        <button id="scan" class="primary" disabled>Scan</button>
+        <button id="cancel" hidden>Cancel</button>
+        <button id="save" disabled>Save PNG</button>
+      </div>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <p id="status" class="status" role="status"></p>
+      <h2><span class="n">4</span> Booth mode</h2>
+      <p class="muted small">The page as the photo booth: full screen, a countdown, and the scanner's
+        own buttons, Space, Enter or a USB foot pedal to scan. Uses the scan settings above. In the
+        booth, press O (or tap the top-left corner three times) for the operator panel.</p>
+      <div class="grid">
+        <label>Turn the image <select id="booth-rotate">
+          <option value="0">upright</option>
+          <option value="90">90° right</option>
+          <option value="180">180°</option>
+          <option value="270">90° left</option>
+        </select></label>
+        <label>Countdown <select id="booth-countdown">
+          <option value="0">none</option>
+          <option value="3" selected>3 s</option>
+          <option value="5">5 s</option>
+        </select></label>
+        <label>Look <select id="booth-effect"></select></label>
+        <label>Wipe-the-glass reminder <select id="booth-clean">
+          <option value="0">never</option>
+          <option value="10">every 10 photos</option>
+          <option value="20" selected>every 20 photos</option>
+          <option value="40">every 40 photos</option>
+        </select></label>
+      </div>
+      <label class="check"><input id="booth-frame" type="checkbox" checked> White frame with a caption</label>
+      <div class="grid">
+        <label>Caption <input id="booth-caption" type="text" placeholder="e.g. Sam &amp; Alex, 2026" maxlength="60"></label>
+        <label class="check bottom"><input id="booth-date" type="checkbox" checked> Add the date</label>
+      </div>
+      <label class="check"><input id="booth-print-each" type="checkbox"> Print every photo
+        <span class="muted small">(silent with Chrome's <code>--kiosk-printing</code>)</span></label>
+      <div class="row">
+        <button id="booth-folder">Save photos to a folder…</button>
+        <span id="booth-folder-name" class="muted small">not saving</span>
+      </div>
+      <div class="row">
+        <button id="booth-slideshow">Open slideshow window</button>
+        <span class="muted small">for a second screen</span>
+      </div>
+      <div class="row">
+        <button id="booth-start" class="primary">Start booth</button>
+      </div>
+      <details>
+        <summary>Log</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+
+    <section class="preview">
+      <canvas id="canvas" width="0" height="0"></canvas>
+      <p id="placeholder" class="muted">The scan paints here as the head moves.</p>
+    </section>
+  </main>
+
+  <div id="booth" class="booth" hidden>
+    <div class="booth-stage">
+      <canvas id="booth-canvas" width="0" height="0" hidden></canvas>
+      <img id="booth-photo" alt="your scan" hidden>
+      <div id="booth-count" class="booth-count" hidden></div>
+      <p id="booth-hint" class="booth-hint">Press your face gently to the glass,<br>close your eyes, and press Scan.</p>
+      <div id="booth-attention" class="booth-attention" hidden>
+        <h2 id="booth-attention-title"></h2>
+        <p id="booth-attention-text"></p>
+      </div>
+      <div id="booth-corner" class="booth-corner"></div>
+    </div>
+    <div id="booth-strip" class="booth-strip"></div>
+    <div class="booth-bar">
+      <button id="booth-exit">Exit</button>
+      <span id="booth-status" class="booth-status"></span>
+      <button id="booth-go" class="primary booth-go">Scan</button>
+    </div>
+    <div id="booth-operator" class="booth-operator" hidden>
+      <h2>Operator</h2>
+      <pre id="op-stats"></pre>
+      <div class="row">
+        <button id="op-recalibrate">Recalibrate next scan</button>
+        <button id="op-cleaned">Glass wiped</button>
+      </div>
+      <div class="row">
+        <button id="op-delete">Delete this session's photos…</button>
+        <button id="op-leave">Leave the booth</button>
+        <button id="op-close">Close</button>
+      </div>
+    </div>
+    <iframe id="booth-print" class="booth-print" title="print"></iframe>
+  </div>
+</body>
+</html>

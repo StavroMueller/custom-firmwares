@@ -1,0 +1,156 @@
+// Simulated scanners, mirroring tests/fake_template_scanner.py and
+// tests/fake_geometry_scanner.py so both implementations see the same data.
+
+import { commandId, u16, u32 } from "../v500/bytes.js";
+import { POLL_READY, replies, STATUS } from "../v500/replay.js";
+
+const ACK = 0x06;
+
+// Answers with a template's recorded replies, command by command; polls say
+// ready. Commands that aren't next in the recording (button and lamp checks
+// between scans) get the answers of an idle scanner.
+// strict: the caller must ask for exactly the recorded size. Off, it behaves
+// like USB: a request for more gets what the scanner has (WebUSB asks for at
+// least a full packet).
+export class TemplateScanner {
+  constructor(template, { strict = true } = {}) {
+    this.strict = strict;
+    this.expected = template.groups.filter((g) => g.command !== POLL_READY && g.command !== STATUS);
+    this.next = 0;
+    this.pending = null; // recorded replies of the command in progress
+    this.writes = [];
+    this.command = 0;
+    this.button = 0;
+    this.lamp = true;
+  }
+
+  get replies() {
+    return this.expected.slice(this.next).flatMap(replies).concat(this.pending ?? []);
+  }
+
+  async write(data) {
+    this.writes.push(data.slice());
+    if (data.length === 2 && (data[0] === 0x1b || data[0] === 0x1e)) {
+      this.command = commandId(data);
+      const g = this.expected[this.next];
+      if (g && g.command === this.command) {
+        this.pending = replies(g).slice();
+        this.next++;
+      } else {
+        this.pending = null;
+      }
+    }
+  }
+
+  async read(size) {
+    if (this.command === POLL_READY) return new Uint8Array([0x01]);
+    if (this.command === STATUS) return new Uint8Array([0x18, 0x81]);
+    if (!this.pending) {
+      // not part of the recorded scan: answer like an idle scanner
+      if (this.command === 0x1e85) { // front-panel button: reported once
+        const b = this.button;
+        this.button = 0;
+        return new Uint8Array([b]);
+      }
+      if (this.command === 0x1ea1) return new Uint8Array([this.lamp ? 1 : 0]);
+      return size === 1 ? new Uint8Array([ACK]) : new Uint8Array(size);
+    }
+    const r = this.pending.shift();
+    if (!r) throw new Error(`no recorded reply left for ${this.command.toString(16)}`);
+    if (this.strict ? r.length !== size : r.length > size) throw new Error(`replay asked for ${size} bytes, template has ${r.length}`);
+    return r;
+  }
+}
+
+const RATIO = { 200: 8 / 3, 400: 4 / 3, 800: 1, 1600: 1 };
+
+function trailer(n) {
+  return new Uint8Array([0x02, n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, 0, 0, 0x80, 0]);
+}
+
+// Deterministic 16-bit reference read, same formula as the Python fake.
+export function reference(level, lines, window) {
+  const out = new Uint16Array(lines * window * 3);
+  for (let l = 0; l < lines; l++)
+    for (let x = 0; x < window; x++)
+      for (let c = 0; c < 3; c++) out[(l * window + x) * 3 + c] = level + ((l * 7 + x * 13 + c * 5) % 50) + ((x * 3) % 40);
+  return new Uint8Array(out.buffer);
+}
+
+// Answers from the geometry it's told: reads sized by the last 1e 41.
+export class GeometryScanner {
+  constructor(ratio = null) {
+    this.ratio = ratio;
+    this.writes = [];
+    this.command = 0;
+    this.params = new Map();
+    this.pending = new Uint8Array(0);
+    this.reads = 0;
+    this.dpi = 200;
+  }
+
+  sent(cmd) {
+    return this.params.get(cmd) ?? [];
+  }
+
+  async write(data) {
+    data = data.slice();
+    this.writes.push(data);
+    if (data.length === 2 && (data[0] === 0x1b || data[0] === 0x1e)) {
+      this.command = commandId(data);
+      if (this.command === 0x1e47) {
+        this.pending = this.dataForRead();
+        this.reads++;
+      }
+    } else {
+      if (!this.params.has(this.command)) this.params.set(this.command, []);
+      this.params.get(this.command).push(data);
+      if (this.command === 0x1e57) this.dpi = u32(data, 4);
+    }
+  }
+
+  async read(size) {
+    if (this.command === 0x1e47) {
+      const out = this.pending.subarray(0, size);
+      this.pending = this.pending.subarray(size);
+      return out;
+    }
+    if (this.command === POLL_READY) return new Uint8Array([0x01]);
+    if (this.command === STATUS) return new Uint8Array([0x18, 0x81]);
+    if (this.command === 0x1e85) return new Uint8Array([0]);
+    if (size === 1) return new Uint8Array([ACK]);
+    return new Uint8Array(size);
+  }
+
+  dataForRead() {
+    const p = this.sent(0x1e41).at(-1);
+    const start = u16(p, 0), end = u16(p, 2), lines = u16(p, 4);
+    const window = end - start;
+    if (p[17] !== 0xa0) { // not the image pass: a 16-bit reference (probe 4 lines, white 32, dark 16)
+      const d = reference({ 4: 1200, 32: 40000, 16: 1300 }[lines], lines, window);
+      return join([d, trailer(d.length)]);
+    }
+    const width = Math.round(window / (this.ratio ?? RATIO[this.dpi]));
+    const perBlock = p[18];
+    const line = width * 3;
+    const image = new Uint8Array(lines * line);
+    for (let i = 0; i < image.length; i++) image[i] = i % 251;
+    this.image = image;
+    const parts = [];
+    for (let top = 0; top < lines; top += perBlock) {
+      const block = image.subarray(top * line, Math.min(lines, top + perBlock) * line);
+      parts.push(block, trailer(block.length));
+    }
+    return join(parts);
+  }
+}
+
+function join(parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let pos = 0;
+  for (const p of parts) {
+    out.set(p, pos);
+    pos += p.length;
+  }
+  return out;
+}
