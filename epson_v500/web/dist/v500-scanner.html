@@ -1397,6 +1397,8 @@ const { parseUsblog } = __m12;
 const POLL_READY = 0x1e04;
 const STATUS = 0x1b03;
 const BUSY = 0x40;
+const isType07 = (g) => g.command === 0x1e84 && g.steps[1]?.out && g.steps[1].data[0] === 0x07;
+
 const CMD = { MOVE: 0x1e01, AFE: 0x1e31, LEVELS: 0x1e42, WINDOW: 0x1e41, READ: 0x1e47, PARAMS: 0x1e57, AFE_READ: 0x1e92, TABLE: 0x1e84 };
 const ACK = 0x06;
 
@@ -1565,6 +1567,10 @@ class Replayer {
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       if (this.reuseLevels && measure[0] >= 0 && i >= measure[0] && i <= measure[1]) continue;
+      // the constant type 07 table costs ~190 ms (the scanner works before it
+      // ACKs) and survives between scans, even the 1b 40 resets: send it with
+      // the level measurement only (checked: same image, 0.2 s faster)
+      if (this.reuseLevels && isType07(g)) continue;
       if (calSpan && i >= calSpan[0] && i <= calSpan[1]) continue;
       this.checkStop();
       if (g.command === POLL_READY || g.command === STATUS) {

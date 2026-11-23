@@ -23,6 +23,10 @@ test("a scan with reused levels skips the measurement and sends them", async () 
   assert.equal(reused.dev.sent(0x1e46).length, 0);
   assert.deepEqual(reused.dev.sent(0x1e31).at(-1), levels);
   assert.deepEqual(reused.img.data, fresh.img.data);
+  // the constant type 07 table goes with the measurement
+  const type07 = (dev) => dev.sent(0x1e84).filter((d) => d.length === 8 && d[0] === 0x07).length;
+  assert.equal(type07(fresh.dev), 1);
+  assert.equal(type07(reused.dev), 0);
 });
 
 test("stopping a scan mid-image aborts it on the scanner", async () => {

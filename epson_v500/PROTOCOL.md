@@ -341,6 +341,15 @@ the area (~1 s for 30 mm); speeding up for the scan (~0.7 s); the image.
   pass gets 18-32% faster. Noise rises 6% at 400 dpi, 14% at 800, 20% at 1600.
   The motor settings follow from the period with the plugin's formulas,
   which reproduce every capture.
+- The constant `1e 84` type 07 table takes ~190 ms: the scanner works
+  before it ACKs (every other table ACKs at once). It survives between
+  scans, even the session's `1b 40` resets, so a scan that reuses the levels
+  skips it: same image, 2.26 s instead of 2.46 (checked). Where the rest of
+  a repeat 60 x 40 mm, 200 dpi scan goes: the 25-command session opener
+  13 ms, `1e 11` 43 ms, the move to the area ~0.4 s at 20 mm (2 s at 100 mm),
+  the image 1.36 s. The scanner is the bottleneck while imaging: the host
+  spends 5 ms of those 1.36 s between blocks (91 ms of 5.7 s at 800 dpi),
+  so queuing several reads would gain under 2%.
 - After a scan the scanner sends the carriage home by itself and stays busy
   meanwhile: 2.2 s from 30 mm, 4.8 s from 200 mm. `1e 86` doesn't answer
   while it moves. In a booth this overlaps with the next guest stepping up.
