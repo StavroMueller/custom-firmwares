@@ -81,3 +81,11 @@ def test_js_unit_tests():
 def test_single_file_page_is_up_to_date():
     out = subprocess.run([NODE, "web/tools/build.mjs", "--check"], capture_output=True, text=True, cwd=ROOT)
     assert out.returncode == 0, out.stderr
+
+
+def test_published_page_carries_no_firmware():
+    """Epson's licence forbids redistributing the firmware: only personal
+    copies made in the browser may hold it, never the file in this repo."""
+    page = (ROOT / "web/dist/v500-scanner.html").read_text()
+    assert '<script id="v500-firmware"' not in page
+    assert "EDLA" not in page

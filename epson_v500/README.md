@@ -23,10 +23,17 @@ file, by double-clicking it. No server, no install. (Or serve `web/` with
 `python3 -m http.server` and open <http://localhost:8000>; WebUSB needs
 localhost, https or a local file.)
 
-Click Connect and pick the scanner. Then pick
-Epson's Linux driver download, `iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz`
-from Epson's support site. The page takes the firmware out of it and keeps
-it in the browser for next time. Choose a resolution (200, 400 or 800 dpi),
+Click Connect and pick the scanner. The first time, click **Get it from
+Epson** (Epson's free Linux driver, 650 KB) and drop the download on the
+page. The page takes the firmware out of it and keeps it in the browser for
+next time. (The page can't fetch it from Epson by itself: Epson's server
+doesn't allow other sites to read it, and Epson's licence forbids shipping
+the firmware with the page.)
+
+Then **Save a copy with the firmware built in**: that `v500-scanner.html`
+works on any computer with Chrome or Edge with nothing to pick or install,
+straight from a USB stick. It's for your own computers only: don't post it
+publicly. A test makes sure the copy in this repo never holds firmware. Choose a resolution (200, 400 or 800 dpi),
 colour or grey, and an area, then click Scan. The image paints as the head
 moves. No capture of Epson's driver is needed. Templates
 (`captures/<ts>/*.usblog`) are optional and only add resolutions the page

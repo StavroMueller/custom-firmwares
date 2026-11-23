@@ -2,11 +2,18 @@
 
 import { findFirmware } from "./v500/bundle.js";
 import { setupBooth } from "./booth.js";
+import { decodeBuiltIn, FIRMWARE_ID, firmwareFile, withFirmware } from "./selfcopy.js";
 import { parseFirmware, status, isLoaded, upload } from "./v500/firmware.js";
 import { fromMm, fullBed, retarget } from "./v500/geometry.js";
 import { build, SUPPORTED } from "./v500/protocol.js";
 import { Replayer, Template } from "./v500/replay.js";
 import { WebUsbTransport } from "./v500/webusb.js";
+
+// The page as it arrived, before any script changed it: the source for a
+// personal copy with the firmware built in.
+const PRISTINE = "<!doctype html>\n" + document.documentElement.outerHTML;
+// A single-file build has its code inline; only that can be copied on its own.
+const SELF_CONTAINED = Boolean(document.querySelector('script[type="module"]:not([src])'));
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -139,7 +146,57 @@ ui.connect.addEventListener("click", async () => {
 async function useFirmware(name, data) {
   state.firmware = parseFirmware(data);
   ui.firmwareName.textContent = `${state.firmware.ident} (from ${name})`;
+  $("fw-copy-box").hidden = !SELF_CONTAINED || builtInFirmware() !== null;
 }
+
+// Firmware built into this copy of the page, or null.
+function builtInFirmware() {
+  return decodeBuiltIn(document.getElementById(FIRMWARE_ID)?.textContent);
+}
+
+// A copy of this page with the firmware inside, to open on any computer.
+$("fw-copy").addEventListener("click", () => {
+  const html = withFirmware(PRISTINE, firmwareFile(state.firmware));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  a.download = "v500-scanner.html";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  say("Saved v500-scanner.html with the firmware built in. Keep it for your own computers.", "ok");
+});
+
+async function takeFirmwareFile(f) {
+  try {
+    say("Reading the firmware…");
+    const data = await findFirmware(await f.arrayBuffer());
+    await useFirmware(f.name, data.buffer);
+    await store("put", { name: f.name, data: data.buffer }, "firmware");
+    say("Firmware ready.", "ok");
+  } catch (e) {
+    say(e.message, "bad");
+  }
+}
+
+// Drop Epson's download (or a template capture) anywhere on the page.
+document.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  document.body.classList.add("dropping");
+});
+document.addEventListener("dragleave", (e) => {
+  if (!e.relatedTarget) document.body.classList.remove("dropping");
+});
+document.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  document.body.classList.remove("dropping");
+  for (const f of e.dataTransfer.files) {
+    if (f.name.endsWith(".usblog")) {
+      const note = addTemplate(f.name, await f.arrayBuffer());
+      showTemplates(note ? [note] : []);
+    } else {
+      await takeFirmwareFile(f);
+    }
+  }
+});
 
 function addTemplate(name, data) {
   let t;
@@ -171,15 +228,7 @@ function showTemplates(notes = []) {
 ui.firmware.addEventListener("change", async () => {
   const f = ui.firmware.files[0];
   if (!f) return;
-  try {
-    say("Reading the firmware…");
-    const data = await findFirmware(await f.arrayBuffer());
-    await useFirmware(f.name, data.buffer);
-    await store("put", { name: f.name, data: data.buffer }, "firmware");
-    say("Firmware ready.", "ok");
-  } catch (e) {
-    say(e.message, "bad");
-  }
+  await takeFirmwareFile(f);
 });
 
 ui.templates.addEventListener("change", async () => {
@@ -377,8 +426,15 @@ async function start() {
     }
   }
 
-  const fw = await store("get", "firmware");
-  if (fw) await useFirmware(fw.name, fw.data).catch(() => {});
+  const built = builtInFirmware();
+  if (built) {
+    await useFirmware("this page", built.buffer);
+    $("fw-builtin").hidden = false;
+    $("fw-setup").hidden = true;
+  } else {
+    const fw = await store("get", "firmware");
+    if (fw) await useFirmware(fw.name, fw.data).catch(() => {});
+  }
   const keys = (await store("getAllKeys")) ?? [];
   const notes = [];
   for (const key of keys.filter((k) => String(k).startsWith("template:"))) {

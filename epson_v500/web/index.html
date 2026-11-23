@@ -27,13 +27,23 @@
       </div>
 
       <h2><span class="n">2</span> Firmware</h2>
-      <p class="muted small">The scanner needs its firmware after every power-on. Pick Epson's Linux
-        driver download (<code>iscan-gt-x770-bundle-*.tar.gz</code>, from Epson's support site); the
-        page takes the firmware out of it and keeps it in this browser.</p>
-      <label class="file">
-        <input id="firmware" type="file" accept=".gz,.deb,.bin">
-        <span id="firmware-name" class="muted small">none</span>
-      </label>
+      <p id="fw-builtin" class="small" hidden>Built into this copy of the page: nothing to set up.</p>
+      <div id="fw-setup">
+        <p class="muted small">The scanner needs Epson's firmware after every power-on. Get Epson's
+          free Linux driver (650 KB), then drop it on this page or pick it. The page takes the
+          firmware out of it and keeps it in this browser.</p>
+        <div class="row">
+          <a id="fw-get" class="button" href="https://download2.ebz.epson.net/iscan/plugin/gt-x770/deb/x64/iscan-gt-x770-bundle-2.30.4.x64.deb.tar.gz">Get it from Epson</a>
+          <input id="firmware" type="file" accept=".gz,.deb,.bin" aria-label="Epson driver download">
+        </div>
+      </div>
+      <span id="firmware-name" class="muted small">none</span>
+      <div id="fw-copy-box" hidden>
+        <div class="row"><button id="fw-copy">Save a copy with the firmware built in</button></div>
+        <p class="muted small">That copy works on any computer with Chrome or Edge, with nothing to pick
+          or install. It's for your own computers only: Epson's licence doesn't allow sharing the
+          firmware, so don't post it publicly.</p>
+      </div>
       <details class="advanced">
         <summary>Templates (optional)</summary>
         <p class="muted small">Captures of Epson's driver (<code>tools/capture</code>) add resolutions

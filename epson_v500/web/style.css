@@ -105,6 +105,11 @@ input, select, button {
 input[type="file"] { padding: 6px; }
 
 button { cursor: pointer; }
+a.button {
+  display: inline-block; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; text-decoration: none;
+}
+body.dropping { outline: 4px dashed var(--accent); outline-offset: -8px; }
 button:disabled { opacity: 0.45; cursor: default; }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 8px 22px; }
 button.link { background: none; border: none; padding: 0; color: var(--muted); text-decoration: underline; font-size: 13px; }
