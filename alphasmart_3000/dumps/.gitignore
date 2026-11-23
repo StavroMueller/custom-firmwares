@@ -1,0 +1,3 @@
+# Flash dumps from our units. Contain the stock (copyrighted) firmware: keep out of git.
+*
+!.gitignore
