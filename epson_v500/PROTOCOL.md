@@ -341,6 +341,12 @@ the area (~1 s for 30 mm); speeding up for the scan (~0.7 s); the image.
   pass gets 18-32% faster. Noise rises 6% at 400 dpi, 14% at 800, 20% at 1600.
   The motor settings follow from the period with the plugin's formulas,
   which reproduce every capture.
+- **Calibration drift** (checked over an hour, a scan every 2 minutes, lamp
+  going off in between): freshly calibrated scans stay within 0.2% of the
+  first. A calibration frozen at the start makes brights brighter and darks
+  darker: +2 levels (of 255) after 2 min, +3 at 4, +4.6 at 10, then it
+  levels off (+5 at 60). So reusing it 10 minutes costs at most ~2%
+  contrast.
 - **Limits found the hard way** (both hang the scan until an abort):
   - One `1e 84` upload must be under 64 KiB: a 65,472-byte shading table
     works, 65,664 doesn't (1600 dpi wider than 173 mm). Bytes 2-3 of the
