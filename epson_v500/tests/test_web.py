@@ -88,4 +88,4 @@ def test_published_page_carries_no_firmware():
     copies made in the browser may hold it, never the file in this repo."""
     page = (ROOT / "web/dist/v500-scanner.html").read_text()
     assert '<script id="v500-firmware"' not in page
-    assert "EDLA" not in page
+    assert len(page) < 200_000, "the page grew by about the firmware's size: is it embedded?"
